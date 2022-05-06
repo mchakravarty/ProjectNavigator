@@ -8,30 +8,35 @@
 import XCTest
 @testable import Files
 
+struct Payload: FileContents {
+  init(text: String) {
+    self.text = text
+  }
+
+  init(name: String, data: Data) throws {
+    guard let text = String(data: data, encoding: .utf8) else { throw CocoaError(.formatting) }
+    self.text = text
+  }
+
+  func data() throws -> Data {
+    guard let data = text.data(using: .utf8) else { throw CocoaError(.formatting) }
+    return data
+  }
+
+  var text: String
+}
+
 
 class FilesTests: XCTestCase {
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-    }
+  func testTreeTextInit() throws {
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
+    let payload = Payload(text: "main = print 42"),
+        tree    = ["Main.hs": payload]
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-    }
-
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
+    guard let treeFiles = try? FileOrFolder(folder: Folder<Payload>(tree: tree))
+    else { XCTFail("Couldn't initialise"); return }
+    let files = Folder<Payload>(children: ["Main.hs" : FileOrFolder(file: File(contents: payload))])
+    XCTAssert(treeFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+  }
 }
