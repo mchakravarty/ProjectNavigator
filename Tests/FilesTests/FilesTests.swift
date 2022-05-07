@@ -9,6 +9,8 @@ import XCTest
 @testable import Files
 
 struct Payload: FileContents {
+  var text: String
+
   init(text: String) {
     self.text = text
   }
@@ -22,8 +24,6 @@ struct Payload: FileContents {
     guard let data = text.data(using: .utf8) else { throw CocoaError(.formatting) }
     return data
   }
-
-  var text: String
 }
 
 

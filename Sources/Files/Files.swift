@@ -78,7 +78,7 @@ public struct File<Contents: FileContents>: Identifiable {
   ///   - filewrapper: Optional file wrapper representing the given `contents`.
   ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
-  init(contents: Contents, fileWrapper: FileWrapper? = nil, persistentID uuid: UUID = UUID()) {
+  public init(contents: Contents, fileWrapper: FileWrapper? = nil, persistentID uuid: UUID = UUID()) {
     id                    = uuid
     self.contents         = contents
     self.cleanFileWrapper = fileWrapper?.isRegularFile == true ? fileWrapper : nil
@@ -91,7 +91,7 @@ public struct File<Contents: FileContents>: Identifiable {
   ///   - persistentIDMap: Contains the available persistent ids for this item and its children. If the map is not
   ///       available, new ids are generated.
   ///
-  init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws {
+  public init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws {
     let filename = fileWrapper.filename ?? fileWrapper.preferredFilename ?? "unknown"
 
     guard fileWrapper.isRegularFile,
@@ -168,13 +168,13 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
   ///
   /// - Parameter file: The file that ought to be wrapped.
   ///
-  init(file: File<Contents>) { self = .file(file) }
+  public init(file: File<Contents>) { self = .file(file) }
 
   /// Create a folder variant from a given folder.
   ///
   /// - Parameter folder: The folder that ought to be wrapped.
   ///
-  init(folder: Folder<Contents>) { self = .folder(folder) }
+  public init(folder: Folder<Contents>) { self = .folder(folder) }
 
   /// Create a file or folder from a file wrapper.
   ///
@@ -183,7 +183,7 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
   ///   - persistentIDMap: Contains the available persistent ids for this item and its children. If the map is not
   ///       available, new ids are generated.
   ///
-  init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws {
+  public init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws {
 
     if fileWrapper.isRegularFile {
 
@@ -274,7 +274,7 @@ public struct Folder<Contents: FileContents>: Identifiable {
   ///   - children: The folders children.
   ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
-  init(children: [String: FileOrFolder<Contents>], persistentID uuid: UUID = UUID()) {
+  public init(children: [String: FileOrFolder<Contents>], persistentID uuid: UUID = UUID()) {
     id            = uuid
     self.children = OrderedDictionary(uniqueKeysWithValues: children)
   }
@@ -305,7 +305,7 @@ public struct Folder<Contents: FileContents>: Identifiable {
   ///   - persistentIDMap: Contains the available persistent ids for this folder and its children. If the map is not
   ///       available, new ids are generated.
   ///
-  init(fileWrappers: [String: FileWrapper], persistentIDMap fileMap: FileIDMap?) throws {
+  public init(fileWrappers: [String: FileWrapper], persistentIDMap fileMap: FileIDMap?) throws {
     let children = try fileWrappers.map{
       (key: String, value: FileWrapper) in
         (key, try FileOrFolder<Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) }
