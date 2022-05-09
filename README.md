@@ -1,3 +1,3 @@
-# NavigationView
+# ProjectNavigator
 
-SwiftUI navigation view for macOS and iOS
+SwiftUI project navigation view for macOS and iOS

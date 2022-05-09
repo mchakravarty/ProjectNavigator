@@ -18,7 +18,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "NavigationView",
+  name: "ProjectNavigator",
   platforms: [
     .macOS(.v12),
     .iOS(.v15)
@@ -29,8 +29,8 @@ let package = Package(
       name: "Files",
       targets: ["Files"]),
     .library(
-      name: "NavigationView",
-      targets: ["NavigationView"]),
+      name: "ProjectNavigator",
+      targets: ["ProjectNavigator"]),
   ],
   dependencies: [
     .package(
@@ -47,12 +47,12 @@ let package = Package(
       name: "FilesTests",
       dependencies: ["Files"]),
     .target(
-      name: "NavigationView",
+      name: "ProjectNavigator",
       dependencies: [
         "Files",
         .product(name: "OrderedCollections", package: "swift-collections")]),
     .testTarget(
-      name: "NavigationViewTests",
-      dependencies: ["NavigationView"]),
+      name: "ProjectNavigatorTests",
+      dependencies: ["ProjectNavigator"]),
   ]
 )
