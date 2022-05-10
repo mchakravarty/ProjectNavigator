@@ -7,24 +7,7 @@
 
 import XCTest
 @testable import Files
-
-struct Payload: FileContents {
-  var text: String
-
-  init(text: String) {
-    self.text = text
-  }
-
-  init(name: String, data: Data) throws {
-    guard let text = String(data: data, encoding: .utf8) else { throw CocoaError(.formatting) }
-    self.text = text
-  }
-
-  func data() throws -> Data {
-    guard let data = text.data(using: .utf8) else { throw CocoaError(.formatting) }
-    return data
-  }
-}
+import _FilesTestSupport
 
 
 class FilesTests: XCTestCase {

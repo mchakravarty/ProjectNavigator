@@ -43,13 +43,17 @@ let package = Package(
     .target(
       name: "Files",
       dependencies: [.product(name: "OrderedCollections", package: "swift-collections")]),
+    .target(
+      name: "_FilesTestSupport",
+      dependencies: ["Files"]),
     .testTarget(
       name: "FilesTests",
-      dependencies: ["Files"]),
+      dependencies: ["Files", "_FilesTestSupport"]),
     .target(
       name: "ProjectNavigator",
       dependencies: [
         "Files",
+        "_FilesTestSupport",
         .product(name: "OrderedCollections", package: "swift-collections")]),
     .testTarget(
       name: "ProjectNavigatorTests",
