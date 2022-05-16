@@ -12,6 +12,8 @@ public struct WrappedUUIDSet {
 
   public var ids: Set<UUID> = []
 
+  public init() { ids = [] }
+
   public subscript(id: UUID) -> Bool {
     get { ids.contains(id) }
     set { 
