@@ -45,6 +45,10 @@ public protocol FileContents: Equatable {
   /// Yield the file's data.
   ///
   func data() throws -> Data
+
+  /// To be called before before extracting `data` to facilitate caching expensive serialisation of the content.
+  ///
+  optional mutating func flush() throws
 }
 
 
@@ -123,6 +127,7 @@ public struct File<Contents: FileContents>: Identifiable {
   /// Flush contents into a new file wrapper if this file is dirty.
   ///
   public mutating func flush() throws {
+    contents.flush?()
     if cleanFileWrapper == nil { cleanFileWrapper = try FileWrapper(regularFileWithContents: contents.data()) }
   }
 
