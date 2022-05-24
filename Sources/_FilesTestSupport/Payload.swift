@@ -26,6 +26,8 @@ public struct Payload: FileContents {
     guard let data = text.data(using: .utf8) else { throw CocoaError(.formatting) }
     return data
   }
+
+  public mutating func flush() throws { }
 }
 
 public func treeToPayload(tree: [String: Any]) throws -> [String: Any] {

@@ -12,8 +12,6 @@ import Files
 import _FilesTestSupport
 
 
-// TODO: Can we pass the editor-specific state bindings, such as `EditorPositionState` via the environment?
-
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView: View>: View {
@@ -57,17 +55,17 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
     SwitchFileOrFolder(fileOrFolder: $item) { $file in
 
       // FIXME: We need to use `AnyView` here as the compiler otherwise crashes...
-      AnyView(FileItem(name: name, file: $file, selection: $selection, target: target, label: label))
+      AnyView(FileNavigatorFile(name: name, file: $file, selection: $selection, target: target, label: label))
 
     } folderCase: { $folder in
 
       // FIXME: We need to use `AnyView` here as the compiler otherwise crashes...
-      AnyView(FolderItem(name: name,
-                         folder: $folder,
-                         expansions: $expansions,
-                         selection: $selection,
-                         target: target,
-                         label: label))
+      AnyView(FileNavigatorFolder(name: name,
+                                  folder: $folder,
+                                  expansions: $expansions,
+                                  selection: $selection,
+                                  target: target,
+                                  label: label))
 
     }
   }
@@ -75,7 +73,7 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
 
 // Represents a single file in a navigation view.
 //
-public struct FileItem<Payload: FileContents, LabelView: View, PayloadView: View>: View {
+public struct FileNavigatorFile<Payload: FileContents, LabelView: View, PayloadView: View>: View {
   @Binding var file:      File<Payload>
   @Binding var selection: FileOrFolder.ID?
 
@@ -112,7 +110,7 @@ public struct FileItem<Payload: FileContents, LabelView: View, PayloadView: View
   }
 }
 
-public struct FolderItem<Payload: FileContents, LabelView: View, PayloadView: View>: View {
+public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, PayloadView: View>: View {
   @Binding var folder:     Folder<Payload>
   @Binding var expansions: WrappedUUIDSet
   @Binding var selection:  FileOrFolder.ID?
