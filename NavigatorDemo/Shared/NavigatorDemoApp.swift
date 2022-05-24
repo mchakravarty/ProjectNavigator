@@ -9,9 +9,13 @@ import SwiftUI
 
 @main
 struct NavigatorDemoApp: App {
-    var body: some Scene {
-        DocumentGroup(newDocument: NavigatorDemoDocument()) { file in
-            ContentView(document: file.$document)
-        }
+
+  var body: some Scene {
+
+    DocumentGroup(newDocument: { NavigatorDemoDocument() }) { file in
+
+      let name = file.fileURL?.lastPathComponent ?? "Untitled"
+      ContentView(name: name, document: file.document)
     }
+  }
 }
