@@ -106,6 +106,28 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
   }
 
   func fileWrapper(snapshot: Snapshot, configuration: WriteConfiguration) throws -> FileWrapper {
-    return try snapshot.fileWrapper()
+    let fileWrapper = try snapshot.fileWrapper()
+    if fileWrapper.isDirectory {
+
+      let encoder = PropertyListEncoder()
+      encoder.outputFormat = .xml
+      let newFileMapData = try encoder.encode(texts.fileIDMap)
+
+      if let fileMapWrapper = fileWrapper.fileWrappers?[fileMapName] {
+
+        // If the file map wrapper is already up to date, don't make any further changes
+        if fileMapWrapper.isRegularFile && fileMapWrapper.regularFileContents == newFileMapData {
+
+          return fileWrapper
+
+        }
+        fileWrapper.removeFileWrapper(fileMapWrapper)
+
+      }
+      fileWrapper.addRegularFile(withContents: newFileMapData, preferredFilename: fileMapName)
+
+    }
+
+    return fileWrapper
   }
 }
