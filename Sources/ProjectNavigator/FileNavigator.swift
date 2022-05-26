@@ -12,6 +12,34 @@ import Files
 import _FilesTestSupport
 
 
+// MARK: -
+// MARK: Navigator environment values
+
+public struct NavigatorFilter: EnvironmentKey {
+  public static let defaultValue: (String) -> Bool = { _ in true }
+}
+
+extension EnvironmentValues {
+
+  /// An environment value containing a function that determines whether an item with the given name ought to displayed
+  /// by the file navigator within a folder.
+  ///
+  public var navigatorFilter: (String) -> Bool {
+    get { self[NavigatorFilter.self] }
+    set { self[NavigatorFilter.self] = newValue }
+  }
+}
+
+extension View {
+  public func navigatorFilter(_ navigatorFilter: @escaping (String) -> Bool) -> some View {
+    environment(\.navigatorFilter, navigatorFilter)
+  }
+}
+
+
+// MARK: -
+// MARK: Views
+
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView: View>: View {
@@ -119,6 +147,8 @@ public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, Payloa
   let label:  (String, FileOrFolder<Payload>) -> LabelView
   let target: (Binding<File<Payload>>) -> PayloadView
 
+  @Environment(\.navigatorFilter) var navigatorFilter: (String) -> Bool
+
   /// Creates a navigator for the given file item. The navigator needs to be contained in a `NavigationView`.
   ///
   /// - Parameters:
@@ -148,7 +178,7 @@ public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, Payloa
 
     DisclosureGroup(isExpanded: $expansions[folder.id]) {
 
-      ForEach(folder.children.elements, id: \.value.id) { keyValue in
+      ForEach(folder.children.elements.filter{ navigatorFilter($0.key) }, id: \.value.id) { keyValue in
 
         // FIXME: This is not nice...
         let i = folder.children.keys.firstIndex(of: keyValue.key)!
