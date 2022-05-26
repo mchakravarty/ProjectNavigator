@@ -56,6 +56,7 @@ struct ContentView: View {
           }
 
         }
+        .navigatorFilter{ $0.first != Character(".") }
       }
       .listStyle(.sidebar)
 
