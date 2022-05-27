@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OrderedCollections
 
 import Files
 
@@ -30,10 +31,10 @@ public struct Payload: FileContents {
   public mutating func flush() throws { }
 }
 
-public func treeToPayload(tree: [String: Any]) throws -> [String: Any] {
+public func treeToPayload(tree: OrderedDictionary<String, Any>) throws -> OrderedDictionary<String, Any> {
   try tree.mapValues{ value in
     if let text = value as? String { return Payload(text: text) }
-    else if let tree = value as? [String: Any] { return try treeToPayload(tree: tree) }
+    else if let tree = value as? OrderedDictionary<String, Any> { return try treeToPayload(tree: tree) }
     else { throw CocoaError(.formatting) }
   }
 }

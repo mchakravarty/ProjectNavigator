@@ -276,25 +276,29 @@ public struct Folder<Contents: FileContents>: Identifiable {
   /// Create an file item with the specified set of children.
   ///
   /// - Parameters:
-  ///   - children: The folders children.
+  ///   - children: The folders *ordered* children.
   ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
-  public init(children: [String: FileOrFolder<Contents>], persistentID uuid: UUID = UUID()) {
+  public init(children: OrderedDictionary<String, FileOrFolder<Contents>>, persistentID uuid: UUID = UUID()) {
     id            = uuid
-    self.children = OrderedDictionary(uniqueKeysWithValues: children)
+    self.children = children
   }
 
   /// Create a folder from a contents tree. This is, in particular, useful for writing tests.
   ///
-  /// - Parameter tree: A nested dictionary structure describing the contents of a folder with `Contents` at the leaves.
+  /// - Parameter tree: A nested *ordered* dictionary structure describing the contents of a folder with `Contents` at
+  ///     the leaves.
   ///
-  public init(tree: [String: Any]) throws {
+  public init(tree: OrderedDictionary<String, Any>) throws {
     id       = UUID()
     children = OrderedDictionary(uniqueKeysWithValues: try tree.mapValues{ child in
 
       if let contents = child as? Contents { return FileOrFolder(file: File(contents: contents)) }
-      else if let subTree = child as? [String: Any] { return FileOrFolder(folder: try Folder(tree: subTree)) }
-      else {
+      else if let subTree = child as? OrderedDictionary<String, Any> {
+
+        return FileOrFolder(folder: try Folder(tree: subTree))
+
+      } else {
 
         logger.error("Folder(tree:) unknown type of child")
         throw CocoaError(.coderInvalidValue)
@@ -314,7 +318,7 @@ public struct Folder<Contents: FileContents>: Identifiable {
     let children = try fileWrappers.map{
       (key: String, value: FileWrapper) in
         (key, try FileOrFolder<Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) }
-    self.init(children: Dictionary(uniqueKeysWithValues: children), persistentID: fileMap?.id ?? UUID())
+    self.init(children: OrderedDictionary(uniqueKeysWithValues: children), persistentID: fileMap?.id ?? UUID())
   }
 
 
