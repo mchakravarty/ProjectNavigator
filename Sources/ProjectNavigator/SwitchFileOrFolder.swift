@@ -10,7 +10,7 @@ import SwiftUI
 import Files
 
 
-/// Dispatch on a file or folder choice.
+/// Dispatch on a file or folder choice of a binding, such that the cases receive bindings of the respective component.
 ///
 public struct SwitchFileOrFolder<Contents: FileContents, Content: View>: View {
   @Binding public var fileOrFolder: FileOrFolder<Contents>

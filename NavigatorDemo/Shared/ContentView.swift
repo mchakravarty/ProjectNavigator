@@ -48,12 +48,20 @@ struct ContentView: View {
 
           }
 
-        } label: { name, item in
+        } fileLabel: { name, $file in
 
-          switch item {
-          case .file:   Label(name, systemImage: "doc.plaintext.fill")
-          case .folder: Label(name, systemImage: "folder.fill")
-          }
+          Label(name, systemImage: "doc.plaintext.fill")
+
+        } folderLabel: { name, $folder in
+
+          Label(name, systemImage: "folder.fill")
+            .contextMenu {
+              Button {
+                //                  item.newFile(preferredName: "untitled.text")
+              } label: {
+                Label("New file", systemImage: "doc.badge.plus")
+              }
+            }
 
         }
         .navigatorFilter{ $0.first != Character(".") }

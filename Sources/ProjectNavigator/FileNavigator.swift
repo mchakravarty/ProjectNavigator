@@ -7,6 +7,7 @@
 //  A file navigator enables the navigation of a file tree in a navigation view.
 
 import SwiftUI
+import OrderedCollections
 
 import Files
 import _FilesTestSupport
@@ -42,14 +43,18 @@ extension View {
 
 // Represents a file tree in a navigation view.
 //
-public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView: View>: View {
+public struct FileNavigator<Payload: FileContents,
+                            FileLabelView: View,
+                            FolderLabelView: View,
+                            PayloadView: View>: View {
   @Binding var item:       FileOrFolder<Payload>
   @Binding var expansions: WrappedUUIDSet
   @Binding var selection:  FileOrFolder.ID?
 
-  let name:   String
-  let label:  (String, FileOrFolder<Payload>) -> LabelView
-  let target: (Binding<File<Payload>>) -> PayloadView
+  let name:        String
+  let fileLabel:   (String, Binding<File<Payload>>) -> FileLabelView
+  let folderLabel: (String, Binding<Folder<Payload>>) -> FolderLabelView
+  let target:      (Binding<File<Payload>>) -> PayloadView
 
   // TODO: We also need a version of the initialiser that takes a `LocalizedStringKey`.
 
@@ -61,20 +66,23 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
   ///   - expansion: The set of currently expanded folders in the hierachy.
   ///   - selection: The currently selected file, if any.
   ///   - target: Payload view builder rendering for individual file payloads.
-  ///   - label: A view builder to produce a label for a file or folder.
-  ///   
+  ///   - fileLabel: A view builder to produce a label for a file.
+  ///   - folderLabel: A view builder to produce a label for a folder.
+  ///
   public init<S: StringProtocol>(name: S,
                                  item: Binding<FileOrFolder<Payload>>,
                                  expansions: Binding<WrappedUUIDSet>,
                                  selection: Binding<FileOrFolder.ID?>,
                                  @ViewBuilder target: @escaping (Binding<File<Payload>>) -> PayloadView,
-                                 @ViewBuilder label: @escaping (String, FileOrFolder<Payload>) -> LabelView)
+                                 @ViewBuilder fileLabel: @escaping (String, Binding<File<Payload>>) -> FileLabelView,
+                                 @ViewBuilder folderLabel: @escaping (String, Binding<Folder<Payload>>) -> FolderLabelView)
   {
     self._item       = item
     self._expansions = expansions
     self._selection  = selection
     self.name        = String(name)
-    self.label       = label
+    self.fileLabel   = fileLabel
+    self.folderLabel = folderLabel
     self.target      = target
   }
 
@@ -83,7 +91,12 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
     SwitchFileOrFolder(fileOrFolder: $item) { $file in
 
       // FIXME: We need to use `AnyView` here as the compiler otherwise crashes...
-      AnyView(FileNavigatorFile(name: name, file: $file, selection: $selection, target: target, label: label))
+      AnyView(FileNavigatorFile(name: name,
+                                file: $file,
+                                selection: $selection,
+                                target: target,
+                                fileLabel: fileLabel,
+                                folderLabel: folderLabel))
 
     } folderCase: { $folder in
 
@@ -93,7 +106,8 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
                                   expansions: $expansions,
                                   selection: $selection,
                                   target: target,
-                                  label: label))
+                                  fileLabel: fileLabel,
+                                  folderLabel: folderLabel))
 
     }
   }
@@ -101,13 +115,17 @@ public struct FileNavigator<Payload: FileContents, LabelView: View, PayloadView:
 
 // Represents a single file in a navigation view.
 //
-public struct FileNavigatorFile<Payload: FileContents, LabelView: View, PayloadView: View>: View {
+public struct FileNavigatorFile<Payload: FileContents,
+                                FileLabelView: View,
+                                FolderLabelView: View,
+                                PayloadView: View>: View {
   @Binding var file:      File<Payload>
   @Binding var selection: FileOrFolder.ID?
 
-  let name:   String
-  let label:  (String, FileOrFolder<Payload>) -> LabelView
-  let target: (Binding<File<Payload>>) -> PayloadView
+  let name:        String
+  let fileLabel:   (String, Binding<File<Payload>>) -> FileLabelView
+  let folderLabel: (String, Binding<Folder<Payload>>) -> FolderLabelView
+  let target:      (Binding<File<Payload>>) -> PayloadView
 
   // TODO: We probably also need a version of the initialiser that takes a `LocalizedStringKey`.
 
@@ -115,37 +133,44 @@ public struct FileNavigatorFile<Payload: FileContents, LabelView: View, PayloadV
   ///
   /// - Parameters:
   ///   - name: The name of the file item.
-  ///   - file: The file item whose hierachy is being navigated.
+  ///   - file: The file being represented.
   ///   - selection: The currently selected file, if any.
   ///   - target: Payload view builder rendering for individual file payloads.
-  ///   - label: A view builder to produce a label for a file or folder.
+  ///   - fileLabel: A view builder to produce a label for a file.
+  ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
                                  file: Binding<File<Payload>>,
                                  selection: Binding<FileOrFolder.ID?>,
                                  @ViewBuilder target: @escaping (Binding<File<Payload>>) -> PayloadView,
-                                 @ViewBuilder label: @escaping (String, FileOrFolder<Payload>) -> LabelView)
+                                 @ViewBuilder fileLabel: @escaping (String, Binding<File<Payload>>) -> FileLabelView,
+                                 @ViewBuilder folderLabel: @escaping (String, Binding<Folder<Payload>>) -> FolderLabelView)
   {
     self._file       = file
     self._selection  = selection
     self.name        = String(name)
-    self.label       = label
+    self.fileLabel   = fileLabel
+    self.folderLabel = folderLabel
     self.target      = target
   }
 
   public var body: some View {
-    NavigationLink(tag: file.id, selection: $selection, destination: { target($file) }) { label(name, .file(file)) }
+    NavigationLink(tag: file.id, selection: $selection, destination: { target($file) }) { fileLabel(name, $file) }
   }
 }
 
-public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, PayloadView: View>: View {
+public struct FileNavigatorFolder<Payload: FileContents,
+                                  FileLabelView: View,
+                                  FolderLabelView: View,
+                                  PayloadView: View>: View {
   @Binding var folder:     Folder<Payload>
   @Binding var expansions: WrappedUUIDSet
   @Binding var selection:  FileOrFolder.ID?
 
-  let name:   String
-  let label:  (String, FileOrFolder<Payload>) -> LabelView
-  let target: (Binding<File<Payload>>) -> PayloadView
+  let name:        String
+  let fileLabel:   (String, Binding<File<Payload>>) -> FileLabelView
+  let folderLabel: (String, Binding<Folder<Payload>>) -> FolderLabelView
+  let target:      (Binding<File<Payload>>) -> PayloadView
 
   @Environment(\.navigatorFilter) var navigatorFilter: (String) -> Bool
 
@@ -157,20 +182,23 @@ public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, Payloa
   ///   - expansion: The set of currently expanded folders in the hierachy.
   ///   - selection: The currently selected file, if any.
   ///   - target: Payload view builder rendering for individual file payloads.
-  ///   - label: A view builder to produce a label for a file or folder.
+  ///   - fileLabel: A view builder to produce a label for a file.
+  ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
                                  folder: Binding<Folder<Payload>>,
                                  expansions: Binding<WrappedUUIDSet>,
                                  selection: Binding<FileOrFolder.ID?>,
                                  @ViewBuilder target: @escaping (Binding<File<Payload>>) -> PayloadView,
-                                 @ViewBuilder label: @escaping (String, FileOrFolder<Payload>) -> LabelView)
+                                 @ViewBuilder fileLabel: @escaping (String, Binding<File<Payload>>) -> FileLabelView,
+                                 @ViewBuilder folderLabel: @escaping (String, Binding<Folder<Payload>>) -> FolderLabelView)
   {
     self._folder     = folder
     self._expansions = expansions
     self._selection  = selection
     self.name        = String(name)
-    self.label       = label
+    self.fileLabel   = fileLabel
+    self.folderLabel = folderLabel
     self.target      = target
   }
 
@@ -187,12 +215,13 @@ public struct FileNavigatorFolder<Payload: FileContents, LabelView: View, Payloa
                       expansions: $expansions,
                       selection: $selection,
                       target: target,
-                      label: label)
+                      fileLabel: fileLabel,
+                      folderLabel: folderLabel)
 
       }
 
     } label: {
-      label(name, .folder(folder))
+      folderLabel(name, $folder)
     }
   }
 }
@@ -211,15 +240,17 @@ struct ContentView_Previews: PreviewProvider {
       let tree  = ["Alice"  : "Hello",
                    "Bob"    : "Howdy",
                    "More"   : ["Sun"  : "Light",
-                               "Moon" : "Twilight"],
-                   "Charlie": "Dag"] as [String : Any],
+                               "Moon" : "Twilight"] as OrderedDictionary<String, Any>,
+                   "Charlie": "Dag"] as OrderedDictionary<String, Any>,
           item  = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: tree)))
 
       FileNavigator(name: "Root",
                     item: .constant(item),
                     expansions: $expansions,
                     selection: $selection,
-                    target: { $file in Text(file.contents.text) }, label: { name, _item in Text(name) })
+                    target: { $file in Text(file.contents.text) },
+                    fileLabel: { name, _item in Text(name) },
+                    folderLabel: { name, _item in Text(name) })
     }
   }
 
