@@ -9,3 +9,7 @@ The `Files` library serves as the model representing a file tree that can be mar
 ## `FileNavigator`
 
 The `FileNavigator` view provides navigation to associated files inside an enclosing `NavigationView`. Both navigation labels as well as the navigation destination view are freely configurable.
+
+## NavigatorDemo
+
+The folder [`NavigatorDemo`](NavigatorDemo) contains a simple example application that facilitates the navigation and editing of a bundle of text files.
