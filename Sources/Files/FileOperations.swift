@@ -10,7 +10,7 @@ import Foundation
 
 extension Folder {
 
-  /// Add a new item to the given folder.
+  /// Add a new item to a folder.
   ///
   /// - Parameters:
   ///   - item: The item to be added.
@@ -20,7 +20,7 @@ extension Folder {
   ///   - index: Optional index at which to insert the new item into the ordered set of children. If no index is given,
   ///       the new child will be added at the first position where it fits alphabetically.
   ///
-  mutating func add(item: FileOrFolder<Contents>, withPreferredName preferredName: String, at index: Int? = nil) {
+  public mutating func add(item: FileOrFolder<Contents>, withPreferredName preferredName: String, at index: Int? = nil) {
 
     let ext  = (preferredName as NSString).pathExtension,
         base = (preferredName as NSString).deletingPathExtension
@@ -46,5 +46,16 @@ extension Folder {
                            insertingAt: insertionIndex > children.keys.endIndex ? children.keys.endIndex : insertionIndex)
                              // ...in case the caller passes an out of range index
     }
+  }
+
+  /// Remove the item with the given name from the a folder.
+  ///
+  /// - Parameter name: The name of the item to be removed.
+  /// - Returns: The removed item or `nil` if there was no item of that name.
+  ///
+  public mutating func remove(name: String) -> FileOrFolder<Contents>? {
+
+    let index = children.index(forKey: name)
+    return index.map{ children.remove(at: $0).value }
   }
 }
