@@ -19,6 +19,80 @@ extension UUID: RawRepresentable {
   }
 }
 
+struct FileContextMenu: View {
+  @Binding var file: File<Payload>
+
+  var body: some View {
+
+    Button {
+
+    } label: {
+      Label("Change name", systemImage: "pencil")
+    }
+
+    Divider()
+
+    Button(role: .destructive) {
+      
+    } label: {
+      Label("Delete", systemImage: "trash")
+    }
+
+  }
+}
+
+struct FolderContextMenu: View {
+  @Binding var folder: Folder<Payload>
+
+  @EnvironmentObject var document: NavigatorDemoDocument
+
+  var body: some View {
+
+    Button {
+      withAnimation {
+        folder.add(item: FileOrFolder(file: File(contents: Payload(text: ""))),
+                   withPreferredName: "Text.txt")
+
+//                !!!Now we need to be able to edit the name of the newly added file.
+      }
+    } label: {
+      Label("New file", systemImage: "doc.badge.plus")
+    }
+
+    Button {
+      withAnimation {
+        folder.add(item: FileOrFolder(folder: Folder(children: [:])),
+                   withPreferredName: "Folder")
+
+//                !!!Now we need to be able to edit the name of the newly added file.
+      }
+    } label: {
+      Label("New folder", systemImage: "folder.badge.plus")
+    }
+
+    Divider()
+
+    Button {
+
+    } label: {
+      Label("Change name", systemImage: "pencil")
+    }
+
+    // Only support a delete action if this menu doesn't apply to the root folder
+    if folder.id != document.texts.id {
+
+      Divider()
+
+      Button(role: .destructive) {
+
+      } label: {
+        Label("Delete", systemImage: "trash")
+      }
+
+    }
+
+  }
+}
 
 struct ContentView: View {
   let name: String
@@ -51,17 +125,12 @@ struct ContentView: View {
         } fileLabel: { name, $file in
 
           Label(name, systemImage: "doc.plaintext.fill")
+            .contextMenu { FileContextMenu(file: $file) }
 
         } folderLabel: { name, $folder in
 
           Label(name, systemImage: "folder.fill")
-            .contextMenu {
-              Button {
-                //                  item.newFile(preferredName: "untitled.text")
-              } label: {
-                Label("New file", systemImage: "doc.badge.plus")
-              }
-            }
+            .contextMenu { FolderContextMenu(folder: $folder) }
 
         }
         .navigatorFilter{ $0.first != Character(".") }
