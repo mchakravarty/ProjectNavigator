@@ -20,7 +20,10 @@ extension UUID: RawRepresentable {
 }
 
 struct FileContextMenu: View {
-  @Binding var file: File<Payload>
+  let name: String
+
+  @Binding var file:   File<Payload>
+  @Binding var parent: Folder<Payload>?
 
   var body: some View {
 
@@ -33,7 +36,11 @@ struct FileContextMenu: View {
     Divider()
 
     Button(role: .destructive) {
-      
+
+      withAnimation {
+        _ = parent?.remove(name: name)
+      }
+
     } label: {
       Label("Delete", systemImage: "trash")
     }
@@ -42,7 +49,10 @@ struct FileContextMenu: View {
 }
 
 struct FolderContextMenu: View {
+  let name: String
+
   @Binding var folder: Folder<Payload>
+  @Binding var parent: Folder<Payload>?
 
   @EnvironmentObject var document: NavigatorDemoDocument
 
@@ -79,11 +89,15 @@ struct FolderContextMenu: View {
     }
 
     // Only support a delete action if this menu doesn't apply to the root folder
-    if folder.id != document.texts.id {
+    if parent != nil {
 
       Divider()
 
       Button(role: .destructive) {
+
+        withAnimation {
+          _ = parent?.remove(name: name)
+        }
 
       } label: {
         Label("Delete", systemImage: "trash")
@@ -107,7 +121,11 @@ struct ContentView: View {
     NavigationView {
 
       List {
-        FileNavigatorFolder(name: name, folder: $document.texts, expansions: $expansions, selection: $selection)
+        FileNavigatorFolder(name: name,
+                            folder: $document.texts,
+                            parent: .constant(nil),
+                            expansions: $expansions,
+                            selection: $selection)
         { $file in
 
           if let text = file.contents.text {
@@ -122,15 +140,21 @@ struct ContentView: View {
 
           }
 
-        } fileLabel: { name, $file in
+        } fileLabel: { name, _file in
 
           Label(name, systemImage: "doc.plaintext.fill")
-            .contextMenu { FileContextMenu(file: $file) }
 
-        } folderLabel: { name, $folder in
+        } folderLabel: { name, _folder in
 
           Label(name, systemImage: "folder.fill")
-            .contextMenu { FolderContextMenu(folder: $folder) }
+
+        } fileMenu: { name, $file, $parent in
+
+          FileContextMenu(name: name, file: $file, parent: $parent)
+
+        } folderMenu: { name, $folder, $parent in
+
+          FolderContextMenu(name: name, folder: $folder, parent: $parent)
 
         }
         .navigatorFilter{ $0.first != Character(".") }
