@@ -58,4 +58,26 @@ extension Folder {
     let index = children.index(forKey: name)
     return index.map{ children.remove(at: $0).value }
   }
+
+  /// Rename the item with to the given new name.
+  ///
+  /// - Parameters:
+  ///   - name: The current name of the item.
+  ///   - newName: The new name that the item ought to assume.
+  ///   - dontMove: `true` iff the renamed item should keep its position in the ordered dictionary of children;
+  ///       otherwise, the renamed item will be moved to the first position where it fits alphabetically.
+  /// - Returns: `true` iff the item exists and now carries the name `newName`.
+  ///
+  public mutating func rename(name: String, to newName: String, dontMove: Bool = false) -> Bool {
+    if name == newName || !children.keys.contains(newName),      // crucial to test for collision *before* removing
+       let index = children.index(forKey: name)
+    {
+
+      let item     = children.remove(at: index).value,
+          newIndex = dontMove ? index : children.keys.firstIndex{ $0 > newName } ?? children.keys.endIndex
+      children.updateValue(item, forKey: newName, insertingAt: newIndex)
+      return true
+
+    } else { return false }
+  }
 }

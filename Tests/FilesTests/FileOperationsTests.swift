@@ -72,4 +72,62 @@ class FileAddTests: XCTestCase {
     else { XCTFail("Couldn't initialise"); return }
     XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
   }
+
+  func testRenameSame() throws {
+
+    let payload                               = Payload(text: "main = print 42"),
+        tree: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
+
+    guard let filesTree = try? FileOrFolder(folder: Folder<Payload>(tree: tree))
+    else { XCTFail("Couldn't initialise"); return }
+    guard case var .folder(files) = filesTree
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssert(files.rename(name: "B.hs", to: "B.hs", dontMove: true), "Renaming failed")
+    XCTAssert(filesTree.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+  }
+
+  func testRenameDontMove() throws {
+
+    let payload1                                    = Payload(text: "main = print 42"),
+        payload2                                    = Payload(text: "main = print ?"),
+        treeBefore: OrderedDictionary<String, Any>  = ["A.hs": payload1, "B.hs": payload2, "C.hs": payload1],
+        treeAfter:  OrderedDictionary<String, Any>  = ["A.hs": payload1, "D.hs": payload2, "C.hs": payload1]
+
+    guard var files = try? Folder<Payload>(tree: treeBefore)
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssert(files.rename(name: "B.hs", to: "D.hs", dontMove: true), "Renaming failed")
+
+    guard let treeAfterFiles = try? FileOrFolder(folder: Folder<Payload>(tree: treeAfter))
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+  }
+
+  func testRenameMove() throws {
+
+    let payload1                                    = Payload(text: "main = print 42"),
+        payload2                                    = Payload(text: "main = print ?"),
+        treeBefore: OrderedDictionary<String, Any>  = ["A.hs": payload1, "B.hs": payload2, "C.hs": payload1],
+        treeAfter:  OrderedDictionary<String, Any>  = ["A.hs": payload1, "C.hs": payload1, "D.hs": payload2]
+
+    guard var files = try? Folder<Payload>(tree: treeBefore)
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssert(files.rename(name: "B.hs", to: "D.hs", dontMove: false), "Renaming failed")
+
+    guard let treeAfterFiles = try? FileOrFolder(folder: Folder<Payload>(tree: treeAfter))
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+  }
+
+  func testRenameClash() throws {
+
+    let payload                               = Payload(text: "main = print 42"),
+        tree: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
+
+    guard let filesTree = try? FileOrFolder(folder: Folder<Payload>(tree: tree))
+    else { XCTFail("Couldn't initialise"); return }
+    guard case var .folder(files) = filesTree
+    else { XCTFail("Couldn't initialise"); return }
+    XCTAssertFalse(files.rename(name: "B.hs", to: "C.hs"), "Renaming incorrectly succeded")
+    XCTAssert(filesTree.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+  }
 }
