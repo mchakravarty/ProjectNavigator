@@ -35,7 +35,9 @@ public struct EditableLabel: View {
       if isEditing {
 
         TextField("", text: $text)
+#if os(iOS)
           .textInputAutocapitalization(.never)
+#endif
           .disableAutocorrection(true)
           .focused($isFocused)
           .onAppear{
