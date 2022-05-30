@@ -72,6 +72,10 @@ class FileAddTests: XCTestCase {
     else { XCTFail("Couldn't initialise"); return }
     XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
   }
+}
+
+
+class FileRenameTests: XCTestCase {
 
   func testRenameSame() throws {
 
