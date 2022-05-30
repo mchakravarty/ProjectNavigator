@@ -34,7 +34,7 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["C.hs": payload, "A.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["C.hs": payload, "B.hs": payload, "A.hs": payload]
 
-    guard case var .folder(files) = try? FileOrFolder(folder: Folder<Payload>(tree: treeBefore))
+    guard var files = try? Folder<Payload>(tree: treeBefore)
     else { XCTFail("Couldn't initialise"); return }
     files.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs", at: 1)
 
@@ -49,7 +49,7 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["A.hs": payload, "C.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
 
-    guard case var .folder(files) = try? FileOrFolder(folder: Folder<Payload>(tree: treeBefore))
+    guard var files = try? Folder<Payload>(tree: treeBefore)
     else { XCTFail("Couldn't initialise"); return }
     files.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs")
 
@@ -64,7 +64,7 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["A.hs": payload, "B.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "B1.hs": payload]
 
-    guard case var .folder(files) = try? FileOrFolder(folder: Folder<Payload>(tree: treeBefore))
+    guard var files = try? Folder<Payload>(tree: treeBefore)
     else { XCTFail("Couldn't initialise"); return }
     files.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs")
 
