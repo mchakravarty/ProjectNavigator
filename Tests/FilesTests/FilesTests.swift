@@ -19,8 +19,7 @@ class FilesTests: XCTestCase {
     let payload = Payload(text: "main = print 42"),
         tree: OrderedDictionary<String, Any>    = ["Main.hs": payload]
 
-    guard let treeFiles = try? FileOrFolder(folder: Folder<Payload>(tree: tree))
-    else { XCTFail("Couldn't initialise"); return }
+    let treeFiles = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: tree)))
     let files = Folder<Payload>(children: ["Main.hs" : FileOrFolder(file: File(contents: payload))])
     XCTAssert(treeFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
   }
