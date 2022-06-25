@@ -8,33 +8,37 @@
 import SwiftUI
 
 
+/// A label whose text can be edited.
+///
 public struct EditableLabel: View {
-  @Binding var text:      String
-  @Binding var isEditing: Bool
+  let text:  String
+  let image: Image
+
+  @Binding var editedText: String?
 
   @FocusState var isFocused: Bool
-
-  let image: Image
 
   /// A label whose text can be edited.
   ///
   /// - Parameters:
-  ///   - text: The editable label text.
+  ///   - text: The label text.
   ///   - systemImage: Name of a system image.
-  ///   - isEditing: Whether the text of the label is currently being in edit mode.
+  ///   - editedText: If non-nil, this text is being edited, while the label text is not shown.
   ///
-  public init(_ text: Binding<String>, systemImage: String, isEditing: Binding<Bool>) {
-    self._text      = text
-    self.image      = Image(systemName: systemImage)
-    self._isEditing = isEditing
+  ///  Editing is aborted and the text before editing restored on exit.
+  ///
+  public init(_ text: String, systemImage: String, editedText: Binding<String?>) {
+    self.text      = text
+    self.image     = Image(systemName: systemImage)
+    self._editedText = editedText
   }
 
   public var body: some View {
 
     Label {
-      if isEditing {
+      if let unwrappedEditedText = Binding(unwrap: $editedText) {
 
-        TextField("", text: $text)
+        TextField("", text: unwrappedEditedText)
 #if os(iOS)
           .textInputAutocapitalization(.never)
 #endif
@@ -43,13 +47,33 @@ public struct EditableLabel: View {
           .onAppear{
             isFocused = true
           }
-          .onSubmit {
-            isEditing = false
+#if os(macOS)
+          .onExitCommand {
+            editedText = nil
           }
+#endif
 
       } else { Text(text) }
 
     } icon: { image }
+  }
+}
+
+
+// MARK: -
+// MARK: Helper
+
+extension Binding {
+
+  // Inspired by https://pointfree.co as an alternative to the force unwrapping version of SwiftUI.
+  init?(unwrap binding: Binding<Value?>) {
+    guard let wrappedValue = binding.wrappedValue
+    else { return nil }
+
+    self.init(
+      get: { wrappedValue },
+      set: { binding.wrappedValue = $0 }
+    )
   }
 }
 
@@ -60,17 +84,22 @@ public struct EditableLabel: View {
 struct EditableLabel_Previews: PreviewProvider {
 
   struct Container: View {
-    @State var text: String    = "Label"
-    @State var isEditing: Bool = false
+    @State var text:       String  = "Label"
+    @State var editedText: String? = nil
 
     var body: some View {
 
       VStack(alignment: .leading, spacing: 8) {
 
         Text("Click on the label to edit")
-        EditableLabel($text, systemImage: "paperplane", isEditing: $isEditing)
+        EditableLabel(text, systemImage: "paperplane", editedText: $editedText)
           .onTapGesture {
-            isEditing = true
+            editedText = text
+          }
+          .onSubmit {
+            if editedText == "" { return }
+            if let editedText = editedText { text = editedText }
+            editedText = nil
           }
 
       }
