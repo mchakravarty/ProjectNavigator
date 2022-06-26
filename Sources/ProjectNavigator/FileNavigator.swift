@@ -10,6 +10,7 @@
 //  menu to a `NavigationLink`s label doesn't work on macOS. (The context menu needs to be attached to the
 //  `NavigationLink` in its entirety.)
 
+import Combine
 import SwiftUI
 import OrderedCollections
 
@@ -46,39 +47,51 @@ extension View {
 
 /// This class captures a file navigator's view state.
 ///
-public final class FileNavigatorViewModel: ObservableObject {
+public final class FileNavigatorViewModel<Model: ObservableObject>: ObservableObject {
 
   public struct EditedLabel {
     public var id:   UUID
     public var text: String
   }
 
+  /// Base model that gets enriched with the information required by the file navigator.
+  ///
+  public let model: Model
+
   /// Set of `UUID`s of all expanded folders.
   ///
-  @Published var expansions: WrappedUUIDSet
+  @Published public var expansions: WrappedUUIDSet
 
   /// The `UUID` of the selected file, if any.
   ///
-  @Published var selection: FileOrFolder.ID?
+  @Published public var selection: FileOrFolder.ID?
 
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
-  @Published var editedLabel: EditedLabel?
+  @Published public var editedLabel: EditedLabel?
+
+  var modelSink: AnyCancellable? = nil  // Needs to be optional and pre-initialised as its initialisation captures self
 
   /// A file navigator's view state.
   ///
   /// - Parameters:
+  ///   - model: Optional wrapped base model object.
   ///   - expansions: The `UUID`s of all expanded folders.
   ///   - selection: The `UUID` of the selected file, if any.
   ///   - editedLabel: The `UUID` and current string of the edited file or folder label, if any.
   ///
-  public init(expansions: WrappedUUIDSet,
+  public init(model: Model,
+              expansions: WrappedUUIDSet,
               selection: FileOrFolder.ID?,
               editedLabel: EditedLabel?)
   {
+    self.model       = model
     self.expansions  = expansions
     self.selection   = selection
     self.editedLabel = editedLabel
+
+    // Forward change events from the wrapped model
+    modelSink = self.model.objectWillChange.sink { _ in self.objectWillChange.send() }
   }
 
   /// Projects an edited text binding for a given UUID out of our `editedLabel` property.
@@ -140,6 +153,7 @@ public typealias TargetViewBuilder<Payload: FileContents, PayloadView: View>
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents,
+                            Model: ObservableObject,
                             FileLabelView: View,
                             FolderLabelView: View,
                             FileMenuView: View,
@@ -148,7 +162,7 @@ public struct FileNavigator<Payload: FileContents,
   @Binding var item:   FileOrFolder<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel
+  @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
   let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
@@ -165,7 +179,7 @@ public struct FileNavigator<Payload: FileContents,
   ///   - name: The name of the file item.
   ///   - item: The file item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
-  ///   - viewModel: The navigator's view model object.
+  ///   - viewModel: This navigator's view model.
   ///   - target: Payload view builder rendering for individual file payloads.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
@@ -175,7 +189,7 @@ public struct FileNavigator<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  item: Binding<FileOrFolder<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel,
+                                 viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
                                  @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
@@ -184,8 +198,8 @@ public struct FileNavigator<Payload: FileContents,
   {
     self._item       = item
     self._parent     = parent
-    self.viewModel   = viewModel
     self.name        = String(name)
+    self.viewModel   = viewModel
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
     self.fileMenu    = fileMenu
@@ -228,6 +242,7 @@ public struct FileNavigator<Payload: FileContents,
 // Represents a single file in a navigation view.
 //
 public struct FileNavigatorFile<Payload: FileContents,
+                                Model: ObservableObject,
                                 FileLabelView: View,
                                 FolderLabelView: View,
                                 FileMenuView: View,
@@ -236,7 +251,7 @@ public struct FileNavigatorFile<Payload: FileContents,
   @Binding var file:   File<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel
+  @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
   let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
@@ -253,15 +268,17 @@ public struct FileNavigatorFile<Payload: FileContents,
   ///   - name: The name of the file item.
   ///   - file: The file being represented.
   ///   - parent: The folder in which the item is contained, if any.
-  ///   - viewModel: The navigator's view model object.
+  ///   - viewModel: This navigator's view model.
   ///   - target: Payload view builder rendering for individual file payloads.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
+  ///   - fileMenu: A view builder to produce the context menu for a file label.
+  ///   - folderMenu: A view builder to produce the context menu for a folder label.
   ///
   public init<S: StringProtocol>(name: S,
                                  file: Binding<File<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel,
+                                 viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
                                  @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
@@ -270,8 +287,8 @@ public struct FileNavigatorFile<Payload: FileContents,
   {
     self._file       = file
     self._parent     = parent
-    self.viewModel   = viewModel
     self.name        = String(name)
+    self.viewModel   = viewModel
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
     self.fileMenu    = fileMenu
@@ -292,6 +309,7 @@ public struct FileNavigatorFile<Payload: FileContents,
 }
 
 public struct FileNavigatorFolder<Payload: FileContents,
+                                  Model: ObservableObject,
                                   FileLabelView: View,
                                   FolderLabelView: View,
                                   FileMenuView: View,
@@ -300,7 +318,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   @Binding var folder: Folder<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel
+  @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
   let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
@@ -317,15 +335,17 @@ public struct FileNavigatorFolder<Payload: FileContents,
   ///   - name: The name of the folder item.
   ///   - folder: The folder item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
-  ///   - viewModel: The file navigator view model for this folder.
+  ///   - viewModel: This navigator's view model.
   ///   - target: Payload view builder rendering for individual file payloads.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
+  ///   - fileMenu: A view builder to produce the context menu for a file label.
+  ///   - folderMenu: A view builder to produce the context menu for a folder label.
   ///
   public init<S: StringProtocol>(name: S,
                                  folder: Binding<Folder<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel,
+                                 viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
                                  @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
@@ -334,8 +354,8 @@ public struct FileNavigatorFolder<Payload: FileContents,
   {
     self._folder     = folder
     self._parent     = parent
-    self.viewModel   = viewModel
     self.name        = String(name)
+    self.viewModel   = viewModel
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
     self.fileMenu    = fileMenu
@@ -387,9 +407,14 @@ let _tree = ["Alice"  : "Hello",
                          "Moon" : "Twilight"] as OrderedDictionary<String, Any>,
              "Charlie": "Dag"] as OrderedDictionary<String, Any>
 
+final class NoModel: ObservableObject { }
+
 struct FileNavigator_Previews: PreviewProvider {
   struct Container: View {
-    @State var viewModel = FileNavigatorViewModel(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+    @ObservedObject var viewModel = FileNavigatorViewModel(model: NoModel(),
+                                                           expansions: WrappedUUIDSet(),
+                                                           selection: nil,
+                                                           editedLabel: nil)
 
     var body: some View {
 
@@ -420,7 +445,10 @@ struct FileNavigator_Previews: PreviewProvider {
 struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
   struct Container: View {
-    @State var viewModel = FileNavigatorViewModel(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+    @State var viewModel = FileNavigatorViewModel(model: NoModel(),
+                                                  expansions: WrappedUUIDSet(),
+                                                  selection: nil,
+                                                  editedLabel: nil)
     @State var item      = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
 
     var body: some View {
