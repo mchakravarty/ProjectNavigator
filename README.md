@@ -1,5 +1,7 @@
 # ProjectNavigator
 
+*NB:* This package requires Xcode 14 (beta).
+
 This package offers support for SwiftUI project navigation for macOS and iOS. At the core is a file tree navigator that can be used inside a `NavigationView`. The package consists of two libraries: (1) `Files` and (2) `ProjectNavigator`. 
 
 ## `Files`
