@@ -10,7 +10,6 @@
 //  menu to a `NavigationLink`s label doesn't work on macOS. (The context menu needs to be attached to the
 //  `NavigationLink` in its entirety.)
 
-import Combine
 import SwiftUI
 import OrderedCollections
 
@@ -54,9 +53,11 @@ public final class FileNavigatorViewModel<Model: ObservableObject>: ObservableOb
     public var text: String
   }
 
-  /// Base model that gets enriched with the information required by the file navigator.
+  /// Base model
   ///
-  public let model: Model
+  /// NB: this is an object whose *internal* changes won't be signalled published by `FileNavigatorViewModel`!
+  ///
+  @Published public var model: Model
 
   /// Set of `UUID`s of all expanded folders.
   ///
@@ -69,8 +70,6 @@ public final class FileNavigatorViewModel<Model: ObservableObject>: ObservableOb
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
   @Published public var editedLabel: EditedLabel?
-
-  var modelSink: AnyCancellable? = nil  // Needs to be optional and pre-initialised as its initialisation captures self
 
   /// A file navigator's view state.
   ///
@@ -89,9 +88,6 @@ public final class FileNavigatorViewModel<Model: ObservableObject>: ObservableOb
     self.expansions  = expansions
     self.selection   = selection
     self.editedLabel = editedLabel
-
-    // Forward change events from the wrapped model
-    modelSink = self.model.objectWillChange.sink { _ in self.objectWillChange.send() }
   }
 
   /// Projects an edited text binding for a given UUID out of our `editedLabel` property.
