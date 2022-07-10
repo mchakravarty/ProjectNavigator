@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E71692F72832E20600BEEB3D"
+               BlueprintIdentifier = "E73B227B2879D2F700A3C2F7"
                BuildableName = "NavigatorDemo.app"
                BlueprintName = "NavigatorDemo"
                ReferencedContainer = "container:NavigatorDemo.xcodeproj">
@@ -44,7 +44,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E71692F72832E20600BEEB3D"
+            BlueprintIdentifier = "E73B227B2879D2F700A3C2F7"
             BuildableName = "NavigatorDemo.app"
             BlueprintName = "NavigatorDemo"
             ReferencedContainer = "container:NavigatorDemo.xcodeproj">
@@ -57,16 +57,6 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E71692F72832E20600BEEB3D"
-            BuildableName = "NavigatorDemo.app"
-            BlueprintName = "NavigatorDemo"
-            ReferencedContainer = "container:NavigatorDemo.xcodeproj">
-         </BuildableReference>
-      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
