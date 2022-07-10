@@ -11,6 +11,9 @@
 		E746A8D8287B333F00328684 /* NavigatorDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71692F02832E20500BEEB3D /* NavigatorDemoApp.swift */; };
 		E746A8D9287B334100328684 /* NavigatorDemoDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71692F12832E20500BEEB3D /* NavigatorDemoDocument.swift */; };
 		E746A8DA287B334300328684 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71692F22832E20500BEEB3D /* ContentView.swift */; };
+		E746A8DC287B58AE00328684 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E71692F32832E20600BEEB3D /* Assets.xcassets */; };
+		E746A8E4287B5B3500328684 /* Files in Frameworks */ = {isa = PBXBuildFile; productRef = E746A8E3287B5B3500328684 /* Files */; };
+		E746A8E6287B5B3500328684 /* ProjectNavigator in Frameworks */ = {isa = PBXBuildFile; productRef = E746A8E5287B5B3500328684 /* ProjectNavigator */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +32,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E746A8E6287B5B3500328684 /* ProjectNavigator in Frameworks */,
+				E746A8E4287B5B3500328684 /* Files in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,6 +94,10 @@
 			dependencies = (
 			);
 			name = NavigatorDemo;
+			packageProductDependencies = (
+				E746A8E3287B5B3500328684 /* Files */,
+				E746A8E5287B5B3500328684 /* ProjectNavigator */,
+			);
 			productName = NavigatorDemo;
 			productReference = E73B227C2879D2F700A3C2F7 /* NavigatorDemo.app */;
 			productType = "com.apple.product-type.application";
@@ -118,7 +127,7 @@
 			);
 			mainGroup = E71692EA2832E20500BEEB3D;
 			packageReferences = (
-				E746A8DB287B341F00328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */,
+				E746A8E2287B5B3500328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */,
 			);
 			productRefGroup = E71692F92832E20600BEEB3D /* Products */;
 			projectDirPath = "";
@@ -135,6 +144,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E73B228A2879D2F700A3C2F7 /* Preview Assets.xcassets in Resources */,
+				E746A8DC287B58AE00328684 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -355,7 +365,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		E746A8DB287B341F00328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */ = {
+		E746A8E2287B5B3500328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mchakravarty/ProjectNavigator.git";
 			requirement = {
@@ -364,6 +374,19 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E746A8E3287B5B3500328684 /* Files */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E746A8E2287B5B3500328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */;
+			productName = Files;
+		};
+		E746A8E5287B5B3500328684 /* ProjectNavigator */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E746A8E2287B5B3500328684 /* XCRemoteSwiftPackageReference "ProjectNavigator" */;
+			productName = ProjectNavigator;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E71692EB2832E20500BEEB3D /* Project object */;
 }

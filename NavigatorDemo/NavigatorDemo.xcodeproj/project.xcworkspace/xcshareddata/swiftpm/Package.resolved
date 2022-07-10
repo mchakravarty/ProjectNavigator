@@ -1,0 +1,23 @@
+{
+  "pins" : [
+    {
+      "identity" : "projectnavigator",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mchakravarty/ProjectNavigator.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "613c761d31a9556f79e32681b1e1d79c7b0f2cd3"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections.git",
+      "state" : {
+        "revision" : "48254824bb4248676bf7ce56014ff57b142b77eb",
+        "version" : "1.0.2"
+      }
+    }
+  ],
+  "version" : 2
+}
