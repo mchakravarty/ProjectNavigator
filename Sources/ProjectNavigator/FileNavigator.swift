@@ -136,10 +136,17 @@ public struct FileNavigatorCursor<Payload: FileContents> {
 // MARK: -
 // MARK: Views
 
-/// Builds a view for an item, given the cursor for that item and a binding to an optional edited name.
+/// Builds a view for a file item, given the cursor for that item, a binding to an optional edited name, and a binding
+/// to the file.
 ///
-public typealias NavigatorViewBuilder<Payload: FileContents, NavigatorView: View>
-  = (FileNavigatorCursor<Payload>, Binding<String?>) -> NavigatorView
+public typealias NavigatorFileViewBuilder<Payload: FileContents, NavigatorView: View>
+  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<File<Payload>>) -> NavigatorView
+
+/// Builds a view for an folder item, given the cursor for that item, a binding to an optional edited name, and a
+/// binding to the file.
+///
+public typealias NavigatorFolderViewBuilder<Payload: FileContents, NavigatorView: View>
+  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<Folder<Payload>>) -> NavigatorView
 
 /// Builds a target view for a file target from a binding to the file.
 ///
@@ -161,10 +168,10 @@ public struct FileNavigator<Payload: FileContents,
   @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
-  let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
-  let folderLabel: NavigatorViewBuilder<Payload, FolderLabelView>
-  let fileMenu:    NavigatorViewBuilder<Payload, FileMenuView>
-  let folderMenu:  NavigatorViewBuilder<Payload, FolderMenuView>
+  let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
+  let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
+  let fileMenu:    NavigatorFileViewBuilder<Payload, FileMenuView>
+  let folderMenu:  NavigatorFolderViewBuilder<Payload, FolderMenuView>
   let target:      TargetViewBuilder<Payload, PayloadView>
 
   // TODO: We also need a version of the initialiser that takes a `LocalizedStringKey`.
@@ -187,10 +194,10 @@ public struct FileNavigator<Payload: FileContents,
                                  parent: Binding<Folder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
-                                 @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
-                                 @ViewBuilder fileMenu: @escaping NavigatorViewBuilder<Payload, FileMenuView>,
-                                 @ViewBuilder folderMenu: @escaping NavigatorViewBuilder<Payload, FolderMenuView>)
+                                 @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
+                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>,
+                                 @ViewBuilder fileMenu: @escaping NavigatorFileViewBuilder<Payload, FileMenuView>,
+                                 @ViewBuilder folderMenu: @escaping NavigatorFolderViewBuilder<Payload, FolderMenuView>)
   {
     self._item       = item
     self._parent     = parent
@@ -250,10 +257,10 @@ public struct FileNavigatorFile<Payload: FileContents,
   @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
-  let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
-  let folderLabel: NavigatorViewBuilder<Payload, FolderLabelView>
-  let fileMenu:    NavigatorViewBuilder<Payload, FileMenuView>
-  let folderMenu:  NavigatorViewBuilder<Payload, FolderMenuView>
+  let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
+  let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
+  let fileMenu:    NavigatorFileViewBuilder<Payload, FileMenuView>
+  let folderMenu:  NavigatorFolderViewBuilder<Payload, FolderMenuView>
   let target:      TargetViewBuilder<Payload, PayloadView>
 
   // TODO: We probably also need a version of the initialiser that takes a `LocalizedStringKey`.
@@ -276,10 +283,10 @@ public struct FileNavigatorFile<Payload: FileContents,
                                  parent: Binding<Folder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
-                                 @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
-                                 @ViewBuilder fileMenu: @escaping NavigatorViewBuilder<Payload, FileMenuView>,
-                                 @ViewBuilder folderMenu: @escaping NavigatorViewBuilder<Payload, FolderMenuView>)
+                                 @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
+                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>,
+                                 @ViewBuilder fileMenu: @escaping NavigatorFileViewBuilder<Payload, FileMenuView>,
+                                 @ViewBuilder folderMenu: @escaping NavigatorFolderViewBuilder<Payload, FolderMenuView>)
   {
     self._file       = file
     self._parent     = parent
@@ -298,9 +305,9 @@ public struct FileNavigatorFile<Payload: FileContents,
         editedTextBinding = viewModel.editedText(for: file.id)
 
     NavigationLink(tag: file.id, selection: $viewModel.selection, destination: { target($file) }) {
-      fileLabel(cursor, editedTextBinding)
+      fileLabel(cursor, editedTextBinding, $file)
     }
-    .contextMenu{ fileMenu(cursor, editedTextBinding) }
+    .contextMenu{ fileMenu(cursor, editedTextBinding, $file) }
   }
 }
 
@@ -317,10 +324,10 @@ public struct FileNavigatorFolder<Payload: FileContents,
   @ObservedObject var viewModel: FileNavigatorViewModel<Model>
 
   let name:        String
-  let fileLabel:   NavigatorViewBuilder<Payload, FileLabelView>
-  let folderLabel: NavigatorViewBuilder<Payload, FolderLabelView>
-  let fileMenu:    NavigatorViewBuilder<Payload, FileMenuView>
-  let folderMenu:  NavigatorViewBuilder<Payload, FolderMenuView>
+  let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
+  let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
+  let fileMenu:    NavigatorFileViewBuilder<Payload, FileMenuView>
+  let folderMenu:  NavigatorFolderViewBuilder<Payload, FolderMenuView>
   let target:      TargetViewBuilder<Payload, PayloadView>
 
   @Environment(\.navigatorFilter) var navigatorFilter: (String) -> Bool
@@ -343,10 +350,10 @@ public struct FileNavigatorFolder<Payload: FileContents,
                                  parent: Binding<Folder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Model>,
                                  @ViewBuilder target: @escaping TargetViewBuilder<Payload, PayloadView>,
-                                 @ViewBuilder fileLabel: @escaping NavigatorViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorViewBuilder<Payload, FolderLabelView>,
-                                 @ViewBuilder fileMenu: @escaping NavigatorViewBuilder<Payload, FileMenuView>,
-                                 @ViewBuilder folderMenu: @escaping NavigatorViewBuilder<Payload, FolderMenuView>)
+                                 @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
+                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>,
+                                 @ViewBuilder fileMenu: @escaping NavigatorFileViewBuilder<Payload, FileMenuView>,
+                                 @ViewBuilder folderMenu: @escaping NavigatorFolderViewBuilder<Payload, FolderMenuView>)
   {
     self._folder     = folder
     self._parent     = parent
@@ -384,8 +391,8 @@ public struct FileNavigatorFolder<Payload: FileContents,
       let cursor            = FileNavigatorCursor(name: name, parent: $parent),
           editedTextBinding = viewModel.editedText(for: folder.id)
 
-      folderLabel(cursor, editedTextBinding)
-        .contextMenu{ folderMenu(cursor, editedTextBinding) }
+      folderLabel(cursor, editedTextBinding, $folder)
+        .contextMenu{ folderMenu(cursor, editedTextBinding, $folder) }
 
     }
   }
@@ -421,10 +428,10 @@ struct FileNavigator_Previews: PreviewProvider {
                     parent: .constant(nil),
                     viewModel: viewModel,
                     target: { $file in Text(file.contents.text) },
-                    fileLabel: { cursor, _editing in Text(cursor.name) },
-                    folderLabel: { cursor, _editing in Text(cursor.name) },
-                    fileMenu: { _, _ in },
-                    folderMenu: { _, _ in })
+                    fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                    folderLabel: { cursor, _editing, _ in Text(cursor.name) },
+                    fileMenu: { _, _, _ in },
+                    folderMenu: { _, _, _ in })
     }
   }
 
@@ -454,7 +461,7 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
                     parent: .constant(nil),
                     viewModel: viewModel,
                     target: { $file in Text(file.contents.text) },
-                    fileLabel: { cursor, $editedText in
+                    fileLabel: { cursor, $editedText, _ in
                                    EditableLabel(cursor.name,
                                                  systemImage: "doc.plaintext.fill",
                                                  editedText: $editedText)
@@ -465,7 +472,7 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
                                        }
                                      }
                                 },
-                    folderLabel: { cursor, $editedText in
+                    folderLabel: { cursor, $editedText, _ in
                                      EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
                                        .onSubmit {
                                          if let newName = editedText {
@@ -474,14 +481,14 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
                                          }
                                        }
                     },
-                    fileMenu: { cursor, $editedText in
+                    fileMenu: { cursor, $editedText, _ in
                       Button {
                         editedText = cursor.name
                       } label: {
                         Label("Change name", systemImage: "pencil")
                       }
                     },
-                    folderMenu: { cursor, $editedText in
+                    folderMenu: { cursor, $editedText, _ in
                       Button { 
                         editedText = cursor.name
                       } label: {
