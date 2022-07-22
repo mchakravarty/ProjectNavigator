@@ -5,6 +5,8 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Text Bundle</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -22,8 +24,8 @@
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>public.composite-content</string>
 				<string>com.apple.package</string>
+				<string>public.composite-content</string>
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Text Bundle</string>
@@ -40,7 +42,5 @@
 			</dict>
 		</dict>
 	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array/>
 </dict>
 </plist>
