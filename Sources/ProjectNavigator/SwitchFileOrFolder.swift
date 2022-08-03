@@ -12,11 +12,11 @@ import Files
 
 /// Dispatch on a file or folder choice of a binding, such that the cases receive bindings of the respective component.
 ///
-public struct SwitchFileOrFolder<Contents: FileContents, Content: View>: View {
+public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, FolderContent: View>: View {
   @Binding public var fileOrFolder: FileOrFolder<Contents>
 
-  public let fileCase:   (Binding<File<Contents>>) -> Content
-  public let folderCase: (Binding<Folder<Contents>>) -> Content
+  public let fileCase:   (Binding<File<Contents>>) -> FileContent
+  public let folderCase: (Binding<Folder<Contents>>) -> FolderContent
 
   /// Dispatch subviews on a dynamic file or folder choice.
   ///
@@ -26,8 +26,8 @@ public struct SwitchFileOrFolder<Contents: FileContents, Content: View>: View {
   ///   - folderCase: Subview for the folder case, binding teh folder contents.
   ///
   public init(fileOrFolder: Binding<FileOrFolder<Contents>>,
-              fileCase: @escaping (Binding<File<Contents>>) -> Content,
-              folderCase: @escaping (Binding<Folder<Contents>>) -> Content)
+              fileCase: @escaping (Binding<File<Contents>>) -> FileContent,
+              folderCase: @escaping (Binding<Folder<Contents>>) -> FolderContent)
   {
     self._fileOrFolder = fileOrFolder
     self.fileCase      = fileCase
