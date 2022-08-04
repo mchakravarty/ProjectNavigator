@@ -129,43 +129,21 @@ struct FolderContextMenu: View {
   }
 }
 
-struct Target: View {
-  @Binding var file: File<Payload>
-
-  var body: some View {
-
-    if let text = file.contents.text {
-
-      let textBinding = Binding { return text } set: { newValue in file.contents.text = newValue }
-      TextEditor(text: textBinding)
-        .font(.custom("HelveticaNeue", size: 15))
-
-    } else {
-
-      Text("Not a UTF-8 text file")
-
-    }
-  }
-}
-
 struct Navigator: View {
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<NavigatorDemoViewModel>
+  @EnvironmentObject var viewModel: FileNavigatorViewModel<NavigatorDemoViewModel, Payload>
 
   var body: some View {
 
-    NavigationView {
+    NavigationSplitView {
 
-      List {
+      List(selection: $viewModel.selection) {
+
         FileNavigatorFolder(name: viewModel.model.name,
                             folder: $viewModel.model.document.texts,
                             parent: .constant(nil),
                             viewModel: viewModel)
-        { $file in
-
-          Target(file: $file)
-
-        } fileLabel: { cursor, $editedText, _ in
+        { cursor, $editedText, _ in
 
           EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
             .onSubmit {
@@ -198,26 +176,43 @@ struct Navigator: View {
       }
       .listStyle(.sidebar)
 
-      Text("Select a file")
+    } detail: {
+
+      if let $file = viewModel.selectedFile {
+
+        if let $text = Binding($file.contents.text) {
+
+          TextEditor(text: $text)
+            .font(.custom("HelveticaNeue", size: 15))
+
+        } else {
+
+          Text("Not a UTF-8 text file")
+
+        }
+
+      } else { Text("Select a file") }
+
     }
-    .navigationViewStyle(.columns)
   }
 }
 
 
 struct ContentView: View {
-  let name: String
-
-  @EnvironmentObject var document: NavigatorDemoDocument
+  let name:     String
+  let document: NavigatorDemoDocument
 
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet = WrappedUUIDSet()
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
   var body: some View {
-    Navigator(viewModel: FileNavigatorViewModel(model: NavigatorDemoViewModel(name: name, document: document),
-                                                expansions: WrappedUUIDSet(),
-                                                selection: nil,
-                                                editedLabel: nil))
+
+    let navigatorDemoViewModel = NavigatorDemoViewModel(name: name, document: document)
+    Navigator()
+      .environmentObject(FileNavigatorViewModel<NavigatorDemoViewModel, Payload>(model: navigatorDemoViewModel,
+                                                                                 expansions: WrappedUUIDSet(),
+                                                                                 selection: nil,
+                                                                                 editedLabel: nil))
   }
 }
 
@@ -228,10 +223,11 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
 
   struct Container: View {
-    @State var document = NavigatorDemoDocument()
+//    @State var document = NavigatorDemoDocument()
+    let document = NavigatorDemoDocument()
 
     var body: some View {
-      ContentView(name: "Test")
+      ContentView(name: "Test", document: document)
         .environmentObject(document)
     }
   }

@@ -15,7 +15,7 @@ struct NavigatorDemoApp: App {
     DocumentGroup(newDocument: { NavigatorDemoDocument() }) { file in
 
       let name = file.fileURL?.lastPathComponent ?? "Untitled"
-      ContentView(name: name)
+      ContentView(name: name, document: file.document)
     }
   }
 }
