@@ -143,7 +143,7 @@ struct Navigator: View {
                             folder: $viewModel.model.document.texts,
                             parent: .constant(nil),
                             viewModel: viewModel)
-        { cursor, $editedText, _ in
+        { cursor, $editedText, $file in
 
           EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
             .onSubmit {
@@ -152,8 +152,9 @@ struct Navigator: View {
                 editedText = nil
               }
             }
+            .contextMenu{ FileContextMenu(cursor: cursor, editedText: $editedText, file: $file) }
 
-        } folderLabel: { cursor, $editedText, _ in
+        } folderLabel: { cursor, $editedText, $folder in
 
           EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
             .onSubmit {
@@ -162,14 +163,7 @@ struct Navigator: View {
                 editedText = nil
               }
             }
-
-        } fileMenu: { cursor, $editedText, $file in
-
-          FileContextMenu(cursor: cursor, editedText: $editedText, file: $file)
-
-        } folderMenu: { cursor, $editedText, $folder in
-
-          FolderContextMenu(cursor: cursor, editedText: $editedText, folder: $folder)
+            .contextMenu{ FolderContextMenu(cursor: cursor, editedText: $editedText, folder: $folder) }
 
         }
         .navigatorFilter{ $0.first != Character(".") }
