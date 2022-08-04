@@ -71,9 +71,9 @@ public final class FileNavigatorViewModel<Model: ObservableObject, Contents: Fil
   ///
   @Published public var editedLabel: EditedLabel?
 
-  /// Caches bindings to all seen files by their uuid.
+  /// Caches bindings to all selectable files by their uuid.
   ///
-  fileprivate var fileMap: [UUID: Binding<File<Contents>>] = [:]
+  private var fileMap: [UUID: Binding<File<Contents>>] = [:]
 
   /// A file navigator's view state.
   ///
@@ -121,6 +121,26 @@ public final class FileNavigatorViewModel<Model: ObservableObject, Contents: Fil
       }
     }
   }
+
+  /// Register the given file as selectable.
+  ///
+  /// - Parameter file: Binding of the file that can be selected.
+  ///
+  func register(file: Binding<File<Contents>>) {
+    fileMap[file.id] = file
+  }
+
+  /// Deregister the file whose UUID is given as selectable.
+  ///
+  /// - Parameter id: UUID of the file that can no longer be selected.
+  ///
+  func deregisterFile(for id: UUID) {
+    _ = fileMap.removeValue(forKey: id)
+  }
+
+  /// Binding to the currently selected file, if any.
+  ///
+  public var selectedFile: Binding<File<Contents>>? { selection.flatMap{ fileMap[$0] } }
 }
 
 /// A cursor points to an item in the file tree.
@@ -293,9 +313,8 @@ public struct FileNavigatorFile<Payload: FileContents,
       fileLabel(cursor, editedTextBinding, $file)
     }
     .contextMenu{ fileMenu(cursor, editedTextBinding, $file) }
-    .onAppear{
-      viewModel.fileMap[file.id] = $file
-    }
+    .onAppear{ viewModel.register(file: $file) }
+    .onDisappear{ viewModel.deregisterFile(for: file.id) }
   }
 }
 
@@ -405,29 +424,33 @@ struct FileNavigator_Previews: PreviewProvider {
                                                                              editedLabel: nil)
     var body: some View {
 
-        NavigationSplitView {
-            List(selection: $viewModel.selection) {
+      NavigationSplitView {
+        List(selection: $viewModel.selection) {
 
-              FileNavigator(name: "Root",
-                            item: .constant(item),
-                            parent: .constant(nil),
-                            viewModel: viewModel,
-                            fileLabel: { cursor, _editing, _ in Text(cursor.name) },
-                            folderLabel: { cursor, _editing, _ in Text(cursor.name) },
-                            fileMenu: { _, _, _ in },
-                            folderMenu: { _, _, _ in })
+          FileNavigator(name: "Root",
+                        item: .constant(item),
+                        parent: .constant(nil),
+                        viewModel: viewModel,
+                        fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                        folderLabel: { cursor, _editing, _ in Text(cursor.name) },
+                        fileMenu: { _, _, _ in },
+                        folderMenu: { _, _, _ in })
 
-            }
-            .navigationTitle("Entries")
-
-        } detail: {
-
-          if let uuid = viewModel.selection {
-            Text(viewModel.fileMap[uuid]?.contents.text.wrappedValue ?? "<not available>")
-          } else {
-            Text("Select a file")
-          }
         }
+        .navigationTitle("Entries")
+
+      } detail: {
+
+        if let file = viewModel.selectedFile {
+
+          Text(file.contents.text.wrappedValue)
+
+        } else {
+
+          Text("Select a file")
+
+        }
+      }
     }
   }
 
@@ -497,10 +520,14 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
       } detail: {
 
-        if let uuid = viewModel.selection {
-          Text(viewModel.fileMap[uuid]?.contents.text.wrappedValue ?? "<not available>")
+        if let file = viewModel.selectedFile {
+
+          Text(file.contents.text.wrappedValue)
+
         } else {
+
           Text("Select a file")
+
         }
       }
     }
