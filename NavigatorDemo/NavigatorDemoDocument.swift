@@ -9,16 +9,17 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import os
 
 import Files
 
 
+private let logger = Logger(subsystem: "org.justtesting.NavigatorDemo", category: "NavigatorDemoDocument")
+
 private let fileMapName = ".FileMap.plist"
 
 extension UTType {
-  static var textBundle: UTType {
-    UTType(exportedAs: "org.justtesting.text-bundle")
-  }
+  static let textBundle: UTType = UTType(exportedAs: "org.justtesting.text-bundle")
 }
 
 struct Payload: FileContents {
@@ -71,16 +72,19 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
 
   @Published var texts: Folder<Payload>
 
+  static var readableContentTypes: [UTType] { [.textBundle] }
+
   init(text: String = "Beautiful text!") {
     self.texts = Folder(children: ["MyText.txt": FileOrFolder(file: File(contents: Payload(text: text)))])
   }
 
-  static var readableContentTypes: [UTType] { [.textBundle] }
-
   init(configuration: ReadConfiguration) throws {
     guard configuration.file.isDirectory,
           let fileWrappers = configuration.file.fileWrappers
-    else { throw CocoaError(.fileReadCorruptFile) }
+    else {
+      logger.error("Couldn't get directory file wrapper")
+      throw CocoaError(.fileReadCorruptFile)
+    }
 
     // Get the persistent file ids if available.
     let fileMap: FileIDMap?
@@ -99,7 +103,10 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
   }
 
   func snapshot(contentType: UTType) throws -> Snapshot {
-    guard contentType == .textBundle else { throw CocoaError(.fileWriteUnknown) }
+    // TODO: On iOS, we don't get passed the correct declared content type for some reason
+    if contentType != .textBundle {
+      logger.error("Snapshot of unknown content type: identifier = '\(contentType.identifier)'")
+    }
 
     try texts.flush()
     return texts
