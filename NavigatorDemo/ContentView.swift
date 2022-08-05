@@ -217,12 +217,10 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
 
   struct Container: View {
-//    @State var document = NavigatorDemoDocument()
     let document = NavigatorDemoDocument()
 
     var body: some View {
       ContentView(name: "Test", document: document)
-        .environmentObject(document)
     }
   }
 
