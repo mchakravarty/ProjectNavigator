@@ -24,22 +24,6 @@ extension UUID: RawRepresentable {
 
 
 // MARK: -
-// MARK: View model
-
-final class NavigatorDemoViewModel: ObservableObject {
-
-  let name: String    // We don't support document name changes in this demo.
-
-  @Published var document: NavigatorDemoDocument
-
-  init(name: String, document: NavigatorDemoDocument) {
-    self.name       = name
-    self.document   = document
-  }
-}
-
-
-// MARK: -
 // MARK: Views
 
 struct FileContextMenu: View {
@@ -130,8 +114,9 @@ struct FolderContextMenu: View {
 }
 
 struct Navigator: View {
+  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
-  @EnvironmentObject var viewModel: FileNavigatorViewModel<NavigatorDemoViewModel, Payload>
+  @EnvironmentObject var model: NavigatorDemoModel
 
   var body: some View {
 
@@ -139,8 +124,8 @@ struct Navigator: View {
 
       List(selection: $viewModel.selection) {
 
-        FileNavigatorFolder(name: viewModel.model.name,
-                            folder: $viewModel.model.document.texts,
+        FileNavigatorFolder(name: model.name,
+                            folder: $model.document.texts,
                             parent: .constant(nil),
                             viewModel: viewModel)
         { cursor, $editedText, $file in
@@ -192,21 +177,34 @@ struct Navigator: View {
 }
 
 
+/// This is the toplevel content view. It expects the app model as the environment object.
+///
 struct ContentView: View {
-  let name:     String
-  let document: NavigatorDemoDocument
 
-  @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet = WrappedUUIDSet()
+  @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
+
+  @StateObject private var fileNavigationViewModel = FileNavigatorViewModel<Payload>()
 
   var body: some View {
 
-    let navigatorDemoViewModel = NavigatorDemoViewModel(name: name, document: document)
-    Navigator()
-      .environmentObject(FileNavigatorViewModel<NavigatorDemoViewModel, Payload>(model: navigatorDemoViewModel,
-                                                                                 expansions: WrappedUUIDSet(),
-                                                                                 selection: nil,
-                                                                                 editedLabel: nil))
+    Navigator(viewModel: fileNavigationViewModel)
+      .task {
+        if let savedExpansions = expansions {
+          fileNavigationViewModel.expansions = savedExpansions
+        }
+        for await newExpansions in fileNavigationViewModel.$expansions.values {
+          expansions = newExpansions
+        }
+      }
+      .task {
+        if let savedSelection = selection {
+          fileNavigationViewModel.selection = savedSelection
+        }
+        for await newSelection in fileNavigationViewModel.$selection.values {
+          selection = newSelection
+        }
+      }
   }
 }
 
@@ -220,7 +218,8 @@ struct ContentView_Previews: PreviewProvider {
     let document = NavigatorDemoDocument()
 
     var body: some View {
-      ContentView(name: "Test", document: document)
+      ContentView()
+        .environmentObject(NavigatorDemoModel(name: "Test", document: document))
     }
   }
 

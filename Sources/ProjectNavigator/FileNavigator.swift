@@ -46,18 +46,12 @@ extension View {
 
 /// This class captures a file navigator's view state.
 ///
-public final class FileNavigatorViewModel<Model: ObservableObject, Contents: FileContents>: ObservableObject {
+public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObject {
 
   public struct EditedLabel {
     public var id:   UUID
     public var text: String
   }
-
-  /// Base model
-  ///
-  /// NB: this is an object whose *internal* changes won't be signalled published by `FileNavigatorViewModel`!
-  ///
-  @Published public var model: Model
 
   /// Set of `UUID`s of all expanded folders.
   ///
@@ -78,17 +72,14 @@ public final class FileNavigatorViewModel<Model: ObservableObject, Contents: Fil
   /// A file navigator's view state.
   ///
   /// - Parameters:
-  ///   - model: Optional wrapped base model object.
   ///   - expansions: The `UUID`s of all expanded folders.
   ///   - selection: The `UUID` of the selected file, if any.
   ///   - editedLabel: The `UUID` and current string of the edited file or folder label, if any.
   ///
-  public init(model: Model,
-              expansions: WrappedUUIDSet,
-              selection: FileOrFolder.ID?,
-              editedLabel: EditedLabel?)
+  public init(expansions: WrappedUUIDSet = WrappedUUIDSet(), 
+              selection: FileOrFolder.ID? = nil,
+              editedLabel: EditedLabel? = nil)
   {
-    self.model       = model
     self.expansions  = expansions
     self.selection   = selection
     self.editedLabel = editedLabel
@@ -175,13 +166,12 @@ public typealias NavigatorFolderViewBuilder<Payload: FileContents, NavigatorView
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents,
-                            Model: ObservableObject,
                             FileLabelView: View,
                             FolderLabelView: View>: View {
   @Binding var item:   FileOrFolder<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Model, Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -202,7 +192,7 @@ public struct FileNavigator<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  item: Binding<FileOrFolder<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Model, Payload>,
+                                 viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -241,13 +231,12 @@ public struct FileNavigator<Payload: FileContents,
 // Represents a single file in a navigation view.
 //
 public struct FileNavigatorFile<Payload: FileContents,
-                                Model: ObservableObject,
                                 FileLabelView: View,
                                 FolderLabelView: View>: View {
   @Binding var file:   File<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Model, Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -268,7 +257,7 @@ public struct FileNavigatorFile<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  file: Binding<File<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Model, Payload>,
+                                 viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -292,13 +281,12 @@ public struct FileNavigatorFile<Payload: FileContents,
 }
 
 public struct FileNavigatorFolder<Payload: FileContents,
-                                  Model: ObservableObject,
                                   FileLabelView: View,
                                   FolderLabelView: View>: View {
   @Binding var folder: Folder<Payload>
   @Binding var parent: Folder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Model, Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -319,7 +307,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  folder: Binding<Folder<Payload>>,
                                  parent: Binding<Folder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Model, Payload>,
+                                 viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -371,17 +359,14 @@ let _tree = ["Alice"  : "Hello",
                          "Moon" : "Twilight"] as OrderedDictionary<String, Any>,
              "Charlie": "Dag"] as OrderedDictionary<String, Any>
 
-final class NoModel: ObservableObject { }
-
 struct FileNavigator_Previews: PreviewProvider {
 
   struct Container: View {
     let item: FileOrFolder<Payload>
 
-    @ObservedObject var viewModel = FileNavigatorViewModel<NoModel, Payload>(model: NoModel(),
-                                                                             expansions: WrappedUUIDSet(),
-                                                                             selection: nil,
-                                                                             editedLabel: nil)
+    @ObservedObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
+                                                                    selection: nil,
+                                                                    editedLabel: nil)
     var body: some View {
 
       NavigationSplitView {
@@ -424,10 +409,9 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
   struct Container: View {
     @State var item  = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
 
-    @ObservedObject var viewModel = FileNavigatorViewModel<NoModel, Payload>(model: NoModel(),
-                                                                             expansions: WrappedUUIDSet(),
-                                                                             selection: nil,
-                                                                             editedLabel: nil)
+    @ObservedObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
+                                                                    selection: nil,
+                                                                    editedLabel: nil)
 
     var body: some View {
 
