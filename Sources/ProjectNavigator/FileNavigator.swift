@@ -274,7 +274,7 @@ public struct FileNavigatorFile<Payload: FileContents,
     let cursor            = FileNavigatorCursor(name: name, parent: $parent),
         editedTextBinding = viewModel.editedText(for: file.id)
 
-    NavigationLink(value: file.id){ fileLabel(cursor, editedTextBinding, $file) }
+    fileLabel(cursor, editedTextBinding, $file)
     .onAppear{ viewModel.register(file: $file) }
     .onDisappear{ viewModel.deregisterFile(for: file.id) }
   }

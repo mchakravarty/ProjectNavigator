@@ -171,7 +171,6 @@ struct Navigator: View {
         }
 
       } else { Text("Select a file") }
-
     }
   }
 }
