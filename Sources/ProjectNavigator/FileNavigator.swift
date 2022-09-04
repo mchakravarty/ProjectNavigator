@@ -5,10 +5,6 @@
 //  Created by Manuel M T Chakravarty on 28/04/2022.
 //
 //  A file navigator enables the navigation of a file tree in a navigation view.
-//
-//  We have to supply the label view builders and context menu view builders separately, because attaching a context
-//  menu to a `NavigationLink`s label doesn't work on macOS. (The context menu needs to be attached to the
-//  `NavigationLink` in its entirety.)
 
 import SwiftUI
 import OrderedCollections
@@ -117,8 +113,8 @@ public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObj
   ///
   /// - Parameter file: Binding of the file that can be selected.
   ///
-  func register(file: Binding<File<Contents>>) {
-    fileMap[file.id] = file
+  func register(file fileBinding: Binding<File<Contents>>) {
+    fileMap[fileBinding.id] = fileBinding
   }
 
   /// Deregister the file whose UUID is given as selectable.
@@ -364,9 +360,9 @@ struct FileNavigator_Previews: PreviewProvider {
   struct Container: View {
     let item: FileOrFolder<Payload>
 
-    @ObservedObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
-                                                                    selection: nil,
-                                                                    editedLabel: nil)
+    @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
+                                                                 selection: nil,
+                                                                 editedLabel: nil)
     var body: some View {
 
       NavigationSplitView {
@@ -409,9 +405,9 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
   struct Container: View {
     @State var item  = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
 
-    @ObservedObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
-                                                                    selection: nil,
-                                                                    editedLabel: nil)
+    @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
+                                                                 selection: nil,
+                                                                 editedLabel: nil)
 
     var body: some View {
 

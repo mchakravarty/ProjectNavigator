@@ -273,7 +273,7 @@ public struct Folder<Contents: FileContents>: Identifiable {
 
   // MARK: Initialisers
 
-  /// Create an file item with the specified set of children.
+  /// Create an folder item with the specified set of children.
   ///
   /// - Parameters:
   ///   - children: The folders *ordered* children.
@@ -307,7 +307,7 @@ public struct Folder<Contents: FileContents>: Identifiable {
     })
   }
 
-  /// Create an file item with the specified set of children.
+  /// Create an folder item the given ile wrappers.
   ///
   /// - Parameters:
   ///   - fileWrappers: The file wrappers representing the folder's children.
@@ -317,7 +317,8 @@ public struct Folder<Contents: FileContents>: Identifiable {
   public init(fileWrappers: [String: FileWrapper], persistentIDMap fileMap: FileIDMap?) throws {
     let children = try fileWrappers.map{
       (key: String, value: FileWrapper) in
-        (key, try FileOrFolder<Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) }
+        (key, try FileOrFolder<Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) },
+        sortedChildren = children.sorted(by: )
     self.init(children: OrderedDictionary(uniqueKeysWithValues: children), persistentID: fileMap?.id ?? UUID())
   }
 

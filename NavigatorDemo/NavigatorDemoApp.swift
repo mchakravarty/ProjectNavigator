@@ -13,8 +13,7 @@ import SwiftUI
 
 final class NavigatorDemoModel: ObservableObject {
 
-  let name: String    // We don't support document name changes in this demo.
-
+  @Published var name:     String
   @Published var document: NavigatorDemoDocument
 
   init(name: String, document: NavigatorDemoDocument) {
@@ -30,13 +29,19 @@ final class NavigatorDemoModel: ObservableObject {
 @main
 struct NavigatorDemoApp: App {
 
+  @StateObject var navigatorDemoModel = NavigatorDemoModel(name: "",
+                                                           document: NavigatorDemoDocument())
+
   var body: some Scene {
 
-    DocumentGroup(newDocument: { NavigatorDemoDocument() }) { file in
+    DocumentGroup(newDocument: { NavigatorDemoDocument(text: "Beautiful text!") }) { file in
 
-      let name = file.fileURL?.lastPathComponent ?? "Untitled"
       ContentView()
-        .environmentObject(NavigatorDemoModel(name: name, document: file.document))
+        .environmentObject(navigatorDemoModel)
+        .onAppear {
+          navigatorDemoModel.name     = file.fileURL?.lastPathComponent ?? "Untitled"
+          navigatorDemoModel.document = file.document
+        }
     }
   }
 }

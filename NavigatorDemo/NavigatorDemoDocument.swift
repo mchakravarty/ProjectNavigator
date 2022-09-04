@@ -74,7 +74,11 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
 
   static var readableContentTypes: [UTType] { [.textBundle] }
 
-  init(text: String = "Beautiful text!") {
+  init() {
+    self.texts = Folder(children: [:])
+  }
+
+  init(text: String) {
     self.texts = Folder(children: ["MyText.txt": FileOrFolder(file: File(contents: Payload(text: text)))])
   }
 
