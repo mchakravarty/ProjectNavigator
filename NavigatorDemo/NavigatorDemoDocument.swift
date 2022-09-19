@@ -68,18 +68,19 @@ struct Payload: FileContents {
 }
 
 final class NavigatorDemoDocument: ReferenceFileDocument {
-  typealias Snapshot = Folder<Payload>
+  typealias Snapshot = FullFileOrFolder<Payload>
 
-  @Published var texts: Folder<Payload>
+  @Published var texts: FileTree<Payload>
 
   static var readableContentTypes: [UTType] { [.textBundle] }
 
   init() {
-    self.texts = Folder(children: [:])
+    self.texts = FileTree(files: FullFileOrFolder(folder: FullFolder(children: [:])))
   }
 
   init(text: String) {
-    self.texts = Folder(children: ["MyText.txt": FileOrFolder(file: File(contents: Payload(text: text)))])
+    let folder = FullFolder(children: ["MyText.txt": FileOrFolder(file: File(contents: Payload(text: text)))])
+    self.texts = FileTree(files: FullFileOrFolder(folder: folder))
   }
 
   init(configuration: ReadConfiguration) throws {
@@ -103,7 +104,8 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
     } else { fileMap = nil }
 
     // Slurp in the tree of folders.
-    texts = try Folder<Payload>(fileWrappers: fileWrappers, persistentIDMap: fileMap)
+    let folder = try FullFolder<Payload>(fileWrappers: fileWrappers, persistentIDMap: fileMap)
+    texts = FileTree(files: FullFileOrFolder(folder: folder))
   }
 
   func snapshot(contentType: UTType) throws -> Snapshot {
@@ -112,8 +114,7 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
       logger.error("Snapshot of unknown content type: identifier = '\(contentType.identifier)'")
     }
 
-    try texts.flush()
-    return texts
+    return try texts.snapshot()
   }
 
   func fileWrapper(snapshot: Snapshot, configuration: WriteConfiguration) throws -> FileWrapper {

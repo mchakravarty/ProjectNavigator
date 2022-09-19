@@ -13,6 +13,8 @@
 //    facilitate the two phase writing of `ReferenceFileDocuments`. Flushing does minimal work and all necessary
 //    mutation on the document. Its result can, then, save as an immutable snapshot to be subsequently serialised and
 //    written.
+//  * We define file proxies to enable storing the actual files contents separately from the tree structure. This
+//    simplifies accessing files via their uuid, which in turn is crucial for using navigation split views.
 
 
 import Foundation
@@ -55,10 +57,58 @@ public protocol FileContents: Equatable {
 // MARK: -
 // MARK: File
 
+/// The interface required of files in folder trees.
+///
+public protocol FileProtocol<Contents>: Identifiable, Equatable where ID == UUID {
+  associatedtype Contents: FileContents
+
+  func fileWrapper() throws -> FileWrapper
+}
+
 /// Represents a single file (i.e., a leaf of a folder tree).
 ///
-public struct File<Contents: FileContents>: Identifiable {
+public struct File<Contents: FileContents>: FileProtocol {
   public let id: UUID
+
+  /// Id-only representation of a file aka file proxy.
+  ///
+  public struct Proxy: FileProtocol {
+    public let id: UUID
+
+    /// The file tree within which this file proxy has been created.
+    ///
+    /// NB:
+    /// * In this manner, we can't accidentally use a proxy with the wrong file tree.
+    /// * Needs to be weak to avoid a cycle.
+    ///
+    internal weak var fileTree: FileTree<Contents>?
+
+    /// The file represented by the proxy.
+    ///
+    public var file: File? {
+      get { fileTree?.lookup(fileId: id) }
+    }
+
+    public static func == (lhs: Proxy, rhs: Proxy) -> Bool { lhs.id == rhs.id }
+
+    // Can only be created internally.
+    internal init(id: UUID, within fileTree: FileTree<Contents>) {
+      self.id       = id
+      self.fileTree = fileTree
+    }
+
+    /// Serialise into a fil wrapper.
+    ///
+    public func fileWrapper() throws -> FileWrapper {
+      if let theFile = file { return try theFile.fileWrapper() }
+      else {
+
+        logger.error("fileWrapper(): no file for proxy")
+        throw CocoaError(.fileWriteUnknown)
+
+      }
+    }
+  }
 
   /// Application-specific representation of the file contents.
   ///
@@ -140,7 +190,7 @@ public struct File<Contents: FileContents>: Identifiable {
 
     } else {
 
-      return  try FileWrapper(regularFileWithContents: contents.data())
+      return try FileWrapper(regularFileWithContents: contents.data())
 
     }
   }
@@ -154,18 +204,23 @@ public struct File<Contents: FileContents>: Identifiable {
 // MARK: -
 // MARK: File or folder
 
-/// Represents a filr or folder item.
+/// Represents a file or folder item, where the concrete type of files is a parameter.
 ///
-public enum FileOrFolder<Contents: FileContents>: Identifiable {
-  case file(File<Contents>)
-  case folder(Folder<Contents>)
+public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identifiable, Equatable {
+  case file(FileType)
+  case folder(Folder<FileType, Contents>)
 
   public var id: UUID {
     switch self {
-    case .file(let file):     return file.id
+    case .file(let file):     return file.id as UUID
     case .folder(let folder): return folder.id
     }
   }
+
+  public static func == (lhs: FileOrFolder<FileType, Contents>, rhs: FileOrFolder<FileType, Contents>) -> Bool {
+    lhs.id == rhs.id
+  }
+
 
   // MARK: Initialisers
 
@@ -173,13 +228,60 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
   ///
   /// - Parameter file: The file that ought to be wrapped.
   ///
-  public init(file: File<Contents>) { self = .file(file) }
+  public init(file: FileType) { self = .file(file) }
 
   /// Create a folder variant from a given folder.
   ///
   /// - Parameter folder: The folder that ought to be wrapped.
   ///
-  public init(folder: Folder<Contents>) { self = .folder(folder) }
+  public init(folder: Folder<FileType, Contents>) { self = .folder(folder) }
+
+
+  // MARK: Queries
+
+  /// Check whether the contents of self and the given file or folder are the same.
+  ///
+  /// - Parameter fileOrFolder: The file or folder whose contents we compare to.
+  /// - Returns: Whether the contents of the two items is the same.
+  ///
+  public func sameContents(fileOrFolder: FileOrFolder<FileType, Contents>) -> Bool {
+    switch self {
+
+    case .file(let selfFile):
+      if case let .file(file) = fileOrFolder { return selfFile.id == file.id } else { return false }
+
+    case .folder(let selfFolder):
+      if case let .folder(folder) = fileOrFolder { return selfFolder.sameContents(folder: folder) } else { return false }
+
+    }
+  }
+
+  /// Yield an up to date file wrapper for the file contents or folder.
+  ///
+  public func fileWrapper() throws -> FileWrapper {
+    switch self {
+    case .file(let file):
+      return try file.fileWrapper()
+
+    case .folder(let folder):
+      return try folder.fileWrapper()
+    }
+  }
+
+  /// Yield this item's file map.
+  ///
+  public var fileIDMap: FileIDMap {
+    switch self {
+    case .file(let file):     return FileIDMap(id: file.id, children: [:])
+    case .folder(let folder): return folder.fileIDMap
+    }
+  }
+}
+
+
+// MARK: Operations for files or folders of full files
+
+extension FileOrFolder {
 
   /// Create a file or folder from a file wrapper.
   ///
@@ -188,15 +290,16 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
   ///   - persistentIDMap: Contains the available persistent ids for this item and its children. If the map is not
   ///       available, new ids are generated.
   ///
-  public init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws {
-
+  public init(fileWrapper: FileWrapper, persistentIDMap fileMap: FileIDMap? = nil) throws
+  where FileType == File<Contents>
+  {
     if fileWrapper.isRegularFile {
 
-      self = .file(try File(fileWrapper: fileWrapper, persistentIDMap: fileMap))
+      self = .file(try File<Contents>(fileWrapper: fileWrapper, persistentIDMap: fileMap))
 
     } else if let fileWrappers = fileWrapper.fileWrappers {
 
-      self = .folder(try Folder<Contents>(fileWrappers: fileWrappers, persistentIDMap: fileMap))
+      self = .folder(try Folder<FileType, Contents>(fileWrappers: fileWrappers, persistentIDMap: fileMap))
 
     } else {
 
@@ -207,55 +310,57 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
     }
   }
 
-  // MARK: Queries
-
-  /// Check whether the contents of self and the given file or folder are the same.
+  /// Yield a proxy version of the current file or folder.
   ///
-  /// - Parameter fileOrFolder: The file or folder whose contents we compare to.
-  /// - Returns: Whether the contents of the two items is the same.
-  ///
-  public func sameContents(fileOrFolder: FileOrFolder<Contents>) -> Bool {
+  public func proxy(within fileTree: FileTree<Contents>) -> FileOrFolder<File<Contents>.Proxy, Contents>
+  where FileType == File<Contents>
+  {
     switch self {
+    case .file(let file):
+      return .file(fileTree.addFile(file: file))
 
-    case .file(let selfFile):
-      if case let .file(file) = fileOrFolder { return selfFile.sameContents(file: file) } else { return false }
-
-    case .folder(let selfFolder):
-      if case let .folder(folder) = fileOrFolder { return selfFolder.sameContents(folder: folder) } else { return false }
-
-    }
-  }
-
-
-  // MARK: Serialisation
-
-  /// Flush the contents of all contained files.
-  ///
-  public mutating func flush() throws {
-    switch self {
-    case .file(var file):     try file.flush()
-    case .folder(var folder): try folder.flush()
-    }
-  }
-
-  /// Yield an up to date file wrapper for the file contents or folder.
-  ///
-  public func fileWrapper() throws -> FileWrapper {
-    switch self {
-    case .file(let file):     return try file.fileWrapper()
-    case .folder(let folder): return try folder.fileWrapper()
-    }
-  }
-
-  /// Yield this item's file map.
-  ///
-  public var fileIDMap: FileIDMap {
-    switch self {
-    case .file(let file):     return file.fileIDMap
-    case .folder(let folder): return folder.fileIDMap
+    case .folder(let folder):
+      return .folder(folder.proxy(within: fileTree))
     }
   }
 }
+
+
+// MARK: Operations for files or folders of proxy files
+
+extension FileOrFolder {
+
+  /// Snapshot a proxy item into a full item.
+  ///
+  public func snapshot() throws -> FileOrFolder<File<Contents>, Contents>
+  where FileType == File<Contents>.Proxy
+  {
+    switch self {
+    case .file(let file):
+      if let fullFile = file.file { return .file(fullFile) }
+      else {
+
+        logger.error("snapshot(): no file for proxy")
+        throw CocoaError(.fileWriteUnknown)
+
+      }
+
+    case .folder(let folder):
+      return .folder(try folder.snapshot())
+    }
+  }
+}
+
+
+// MARK: Type aliases
+
+/// Folder cintaining full files.
+///
+public typealias FullFileOrFolder<Contents: FileContents> = FileOrFolder<File<Contents>, Contents>
+
+/// Folder containing file proxies.
+///
+public typealias ProxyFileOrFolder<Contents: FileContents> = FileOrFolder<File<Contents>.Proxy, Contents>
 
 
 // MARK: -
@@ -263,12 +368,22 @@ public enum FileOrFolder<Contents: FileContents>: Identifiable {
 
 /// Represents a folder containing subitems.
 ///
-public struct Folder<Contents: FileContents>: Identifiable {
+public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiable, Equatable {
   public let id: UUID
 
   /// The subitems contained in the folder.
   ///
-  public var children: OrderedDictionary<String, FileOrFolder<Contents>>
+  public var children: OrderedDictionary<String, FileOrFolder<FileType, Contents>> // {
+
+  /// The file tree within which this folder has been created *if* the folder contains file proxies.
+  ///
+  /// NB:
+  /// * By being embedded in the folder, we can't accidentally use a folder with the wrong file tree.
+  /// * Needs to be weak to avoid a cycle.
+  ///
+  internal weak var fileTree: FileTree<Contents>?
+
+  public static func == (lhs: Folder<FileType, Contents>, rhs: Folder<FileType, Contents>) -> Bool { lhs.id == rhs.id }
 
 
   // MARK: Initialisers
@@ -279,17 +394,65 @@ public struct Folder<Contents: FileContents>: Identifiable {
   ///   - children: The folders *ordered* children.
   ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
-  public init(children: OrderedDictionary<String, FileOrFolder<Contents>>, persistentID uuid: UUID = UUID()) {
-    id            = uuid
+  public init(children: OrderedDictionary<String, FileOrFolder<FileType, Contents>>,
+              persistentID uuid: UUID = UUID(),
+              within fileTree: FileTree<Contents>? = nil)
+  {
+    self.id       = uuid
     self.children = children
+    self.fileTree = fileTree
   }
+
+
+  // MARK: Queries
+
+  /// Check whether the contents of self and the given folder are the same.
+  ///
+  /// - Parameter folder: The folder whose contents we compare to.
+  /// - Returns: Whether the contents of the two folders is the same.
+  ///
+  public func sameContents(folder: Folder<FileType, Contents>) -> Bool {
+    if children.keys != folder.children.keys { return false }
+
+    return children.reduce(true){ (result, element) in
+      return result && (folder.children[element.key]?.sameContents(fileOrFolder: element.value) == true)
+    }
+  }
+
+
+  // MARK: Serialisation
+
+  /// Yield an up to date file wrapper for the folder.
+  ///
+  public func fileWrapper() throws -> FileWrapper {
+    return FileWrapper(directoryWithFileWrappers:
+                        try Dictionary(uniqueKeysWithValues: zip(children.keys,
+                                                                 children.values.map{ try $0.fileWrapper() })))
+  }
+
+  /// Yield this item's file map.
+  ///
+  public var fileIDMap: FileIDMap {
+    FileIDMap(id: id,
+              children: Dictionary(uniqueKeysWithValues: zip(children.keys, children.values.map{ $0.fileIDMap })))
+  }
+}
+
+
+// MARK: Operations for folders of full files
+
+extension Folder {
 
   /// Create a folder from a contents tree. This is, in particular, useful for writing tests.
   ///
-  /// - Parameter tree: A nested *ordered* dictionary structure describing the contents of a folder with `Contents` at
-  ///     the leaves.
+  /// - Parameters:
+  ///   - tree: A nested *ordered* dictionary structure describing the contents of a folder with `Contents` at
+  ///       the leaves.
+  ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
-  public init(tree: OrderedDictionary<String, Any>) throws {
+  public init(tree: OrderedDictionary<String, Any>, persistentID uuid: UUID = UUID()) throws
+  where FileType == File<Contents>
+  {
     id       = UUID()
     children = OrderedDictionary(uniqueKeysWithValues: try tree.mapValues{ child in
 
@@ -307,58 +470,55 @@ public struct Folder<Contents: FileContents>: Identifiable {
     })
   }
 
-  /// Create an folder item the given ile wrappers.
+  /// Create an folder item from the given file wrappers.
   ///
   /// - Parameters:
   ///   - fileWrappers: The file wrappers representing the folder's children.
   ///   - persistentIDMap: Contains the available persistent ids for this folder and its children. If the map is not
   ///       available, new ids are generated.
   ///
-  public init(fileWrappers: [String: FileWrapper], persistentIDMap fileMap: FileIDMap?) throws {
-    let children = try fileWrappers.map{
+  public init(fileWrappers: [String: FileWrapper], persistentIDMap fileMap: FileIDMap?) throws
+  where FileType == File<Contents>
+  {
+    let children = try fileWrappers.map {
       (key: String, value: FileWrapper) in
-        (key, try FileOrFolder<Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) },
-        sortedChildren = children.sorted(by: )
-    self.init(children: OrderedDictionary(uniqueKeysWithValues: children), persistentID: fileMap?.id ?? UUID())
+      (key, try FileOrFolder<FileType, Contents>(fileWrapper: value, persistentIDMap: fileMap?.children[key])) },
+      sortedChildren = children.sorted(by: { (lhs, rhs) in lhs.0 < rhs.0 })
+    self.init(children: OrderedDictionary(uniqueKeysWithValues: sortedChildren), persistentID: fileMap?.id ?? UUID())
   }
 
-
-  // MARK: Queries
-
-  /// Check whether the contents of self and the given folder are the same.
+  /// Yield a proxy version of the current (non-proxy) folder within the given file tree.
   ///
-  /// - Parameter folder: The folder whose contents we compare to.
-  /// - Returns: Whether the contents of the two folders is the same.
-  ///
-  public func sameContents(folder: Folder<Contents>) -> Bool {
-    if children.keys != folder.children.keys { return false }
-
-    return children.reduce(true){ (result, element) in
-      return result && (folder.children[element.key]?.sameContents(fileOrFolder: element.value) == true)
-    }
-  }
-
-
-  // MARK: Serialisation
-
-  /// Flush the contents of all contained files.
-  ///
-  public mutating func flush() throws {
-    for (_, var fileOrFolder) in children { try fileOrFolder.flush() }
-  }
-
-  /// Yield an up to date file wrapper for the folder.
-  ///
-  public func fileWrapper() throws -> FileWrapper {
-    return FileWrapper(directoryWithFileWrappers:
-                        try Dictionary(uniqueKeysWithValues: zip(children.keys,
-                                                                 children.values.map{ try $0.fileWrapper() })))
-  }
-
-  /// Yield this item's file map.
-  ///
-  public var fileIDMap: FileIDMap {
-    FileIDMap(id: id,
-              children: Dictionary(uniqueKeysWithValues: zip(children.keys, children.values.map{ $0.fileIDMap })))
+  public func proxy(within fileTree: FileTree<Contents>) -> Folder<File<Contents>.Proxy, Contents>
+  where FileType == File<Contents>
+  {
+    return Folder<File<Contents>.Proxy, Contents>(children: children.mapValues{ $0.proxy(within: fileTree) },
+                                                  persistentID: id,
+                                                  within: fileTree)
   }
 }
+
+
+// MARK: Operations for folders of proxy files
+
+extension Folder {
+
+  /// Snapshot a fgolder of proxy files into a folder of full files.
+  ///
+  public func snapshot() throws -> Folder<File<Contents>, Contents>
+  where FileType == File<Contents>.Proxy
+  {
+    return Folder<File<Contents>, Contents>(children: try children.mapValues{ try $0.snapshot() }, persistentID: id)
+  }
+}
+
+
+// MARK: Type aliases
+
+/// Folder cintaining full files.
+///
+public typealias FullFolder<Contents: FileContents> = Folder<File<Contents>, Contents>
+
+/// Folder containing file proxies.
+/// 
+public typealias ProxyFolder<Contents: FileContents> = Folder<File<Contents>.Proxy, Contents>

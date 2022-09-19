@@ -30,7 +30,8 @@ struct FileContextMenu: View {
   let cursor: FileNavigatorCursor<Payload>
 
   @Binding var editedText: String?
-  @Binding var file:       File<Payload>
+
+  let proxy: File<Payload>.Proxy
 
   var body: some View {
 
@@ -59,7 +60,7 @@ struct FolderContextMenu: View {
   let cursor: FileNavigatorCursor<Payload>
 
   @Binding var editedText: String?
-  @Binding var folder:     Folder<Payload>
+  @Binding var folder:     ProxyFolder<Payload>
 
   var body: some View {
 
@@ -124,11 +125,11 @@ struct Navigator: View {
 
       List(selection: $viewModel.selection) {
 
-        FileNavigatorFolder(name: model.name,
-                            folder: $model.document.texts,
-                            parent: .constant(nil),
-                            viewModel: viewModel)
-        { cursor, $editedText, $file in
+        FileNavigator(name: model.name,
+                      item: $model.document.texts.root,
+                      parent: .constant(nil),
+                      viewModel: viewModel)
+        { cursor, $editedText, proxy in
 
           EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
             .onSubmit {
@@ -137,7 +138,7 @@ struct Navigator: View {
                 editedText = nil
               }
             }
-            .contextMenu{ FileContextMenu(cursor: cursor, editedText: $editedText, file: $file) }
+            .contextMenu{ FileContextMenu(cursor: cursor, editedText: $editedText, proxy: proxy) }
 
         } folderLabel: { cursor, $editedText, $folder in
 
@@ -157,18 +158,15 @@ struct Navigator: View {
 
     } detail: {
 
-      if let $file = viewModel.selectedFile {
+      if let uuid  = viewModel.selection,
+         let $file = Binding(model.document.texts.proxy(for: uuid).binding) {
 
         if let $text = Binding($file.contents.text) {
 
           TextEditor(text: $text)
             .font(.custom("HelveticaNeue", size: 15))
 
-        } else {
-
-          Text("Not a UTF-8 text file")
-
-        }
+        } else { Text("Not a UTF-8 text file") }
 
       } else { Text("Select a file") }
     }

@@ -43,6 +43,7 @@ extension View {
 /// This class captures a file navigator's view state.
 ///
 public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObject {
+//public final class FileNavigatorViewModel: ObservableObject {
 
   public struct EditedLabel {
     public var id:   UUID
@@ -61,9 +62,9 @@ public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObj
   ///
   @Published public var editedLabel: EditedLabel?
 
-  /// Caches bindings to all selectable files by their uuid.
-  ///
-  private var fileMap: [UUID: Binding<File<Contents>>] = [:]
+//  /// Caches bindings to all selectable files by their uuid.
+//  ///
+//  private var fileMap: [UUID: Binding<File<Contents>>] = [:]
 
   /// A file navigator's view state.
   ///
@@ -109,25 +110,25 @@ public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObj
     }
   }
 
-  /// Register the given file as selectable.
-  ///
-  /// - Parameter file: Binding of the file that can be selected.
-  ///
-  func register(file fileBinding: Binding<File<Contents>>) {
-    fileMap[fileBinding.id] = fileBinding
-  }
+//  /// Register the given file as selectable.
+//  ///
+//  /// - Parameter file: Binding of the file that can be selected.
+//  ///
+//  func register(file fileBinding: Binding<File<Contents>>) {
+//    fileMap[fileBinding.id] = fileBinding
+//  }
+//
+//  /// Deregister the file whose UUID is given as selectable.
+//  ///
+//  /// - Parameter id: UUID of the file that can no longer be selected.
+//  ///
+//  func deregisterFile(for id: UUID) {
+//    _ = fileMap.removeValue(forKey: id)
+//  }
 
-  /// Deregister the file whose UUID is given as selectable.
-  ///
-  /// - Parameter id: UUID of the file that can no longer be selected.
-  ///
-  func deregisterFile(for id: UUID) {
-    _ = fileMap.removeValue(forKey: id)
-  }
-
-  /// Binding to the currently selected file, if any.
-  ///
-  public var selectedFile: Binding<File<Contents>>? { selection.flatMap{ fileMap[$0] } }
+//  /// Binding to the currently selected file, if any.
+//  ///
+//  public var selectedFile: Binding<File<Contents>>? { selection.flatMap{ fileMap[$0] } }
 }
 
 /// A cursor points to an item in the file tree.
@@ -140,32 +141,32 @@ public struct FileNavigatorCursor<Payload: FileContents> {
 
   /// Binding to the item's parent if any. (This is necessary as all changes to an item need to go through its parent.)
   ///
-  public let parent: Binding<Folder<Payload>?>
+  public let parent: Binding<ProxyFolder<Payload>?>
 }
 
 
 // MARK: -
 // MARK: Views
 
-/// Builds a view for a file item, given the cursor for that item, a binding to an optional edited name, and a binding
-/// to the file.
+/// Builds a view for a file item, given the cursor for that item, a binding to an optional edited name, and the proxy
+/// for the file.
 ///
 public typealias NavigatorFileViewBuilder<Payload: FileContents, NavigatorView: View>
-  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<File<Payload>>) -> NavigatorView
+  = (FileNavigatorCursor<Payload>, Binding<String?>, File<Payload>.Proxy) -> NavigatorView
 
 /// Builds a view for an folder item, given the cursor for that item, a binding to an optional edited name, and a
-/// binding to the file.
+/// binding to folder (of proxies).
 ///
 public typealias NavigatorFolderViewBuilder<Payload: FileContents, NavigatorView: View>
-  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<Folder<Payload>>) -> NavigatorView
+  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<ProxyFolder<Payload>>) -> NavigatorView
 
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents,
                             FileLabelView: View,
                             FolderLabelView: View>: View {
-  @Binding var item:   FileOrFolder<Payload>
-  @Binding var parent: Folder<Payload>?
+  @Binding var item:   ProxyFileOrFolder<Payload>
+  @Binding var parent: ProxyFolder<Payload>?
 
   @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
@@ -186,8 +187,8 @@ public struct FileNavigator<Payload: FileContents,
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
-                                 item: Binding<FileOrFolder<Payload>>,
-                                 parent: Binding<Folder<Payload>?>,
+                                 item: Binding<ProxyFileOrFolder<Payload>>,
+                                 parent: Binding<ProxyFolder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
@@ -202,10 +203,10 @@ public struct FileNavigator<Payload: FileContents,
 
   public var body: some View {
 
-    SwitchFileOrFolder(fileOrFolder: $item) { $file in
+    SwitchFileOrFolder(fileOrFolder: $item) { file in
 
       FileNavigatorFile(name: name,
-                        file: $file,
+                        proxy: file,
                         parent: $parent,
                         viewModel: viewModel,
                         fileLabel: fileLabel,
@@ -229,8 +230,9 @@ public struct FileNavigator<Payload: FileContents,
 public struct FileNavigatorFile<Payload: FileContents,
                                 FileLabelView: View,
                                 FolderLabelView: View>: View {
-  @Binding var file:   File<Payload>
-  @Binding var parent: Folder<Payload>?
+  let proxy: File<Payload>.Proxy
+
+  @Binding var parent: ProxyFolder<Payload>?
 
   @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
@@ -244,20 +246,20 @@ public struct FileNavigatorFile<Payload: FileContents,
   ///
   /// - Parameters:
   ///   - name: The name of the file item.
-  ///   - file: The file being represented.
+  ///   - proxy: The proxy of the file being represented.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewModel: This navigator's view model.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
-                                 file: Binding<File<Payload>>,
-                                 parent: Binding<Folder<Payload>?>,
+                                 proxy: File<Payload>.Proxy,
+                                 parent: Binding<ProxyFolder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
-    self._file       = file
+    self.proxy       = proxy
     self._parent     = parent
     self.name        = String(name)
     self.viewModel   = viewModel
@@ -268,19 +270,17 @@ public struct FileNavigatorFile<Payload: FileContents,
   public var body: some View {
 
     let cursor            = FileNavigatorCursor(name: name, parent: $parent),
-        editedTextBinding = viewModel.editedText(for: file.id)
+        editedTextBinding = viewModel.editedText(for: proxy.id)
 
-    fileLabel(cursor, editedTextBinding, $file)
-    .onAppear{ viewModel.register(file: $file) }
-    .onDisappear{ viewModel.deregisterFile(for: file.id) }
+    fileLabel(cursor, editedTextBinding, proxy)
   }
 }
 
 public struct FileNavigatorFolder<Payload: FileContents,
                                   FileLabelView: View,
                                   FolderLabelView: View>: View {
-  @Binding var folder: Folder<Payload>
-  @Binding var parent: Folder<Payload>?
+  @Binding var folder: ProxyFolder<Payload>
+  @Binding var parent: ProxyFolder<Payload>?
 
   @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
 
@@ -301,8 +301,8 @@ public struct FileNavigatorFolder<Payload: FileContents,
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
-                                 folder: Binding<Folder<Payload>>,
-                                 parent: Binding<Folder<Payload>?>,
+                                 folder: Binding<ProxyFolder<Payload>>,
+                                 parent: Binding<ProxyFolder<Payload>?>,
                                  viewModel: FileNavigatorViewModel<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
@@ -358,7 +358,7 @@ let _tree = ["Alice"  : "Hello",
 struct FileNavigator_Previews: PreviewProvider {
 
   struct Container: View {
-    let item: FileOrFolder<Payload>
+    let fileTree: FileTree<Payload>
 
     @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
                                                                  selection: nil,
@@ -369,7 +369,7 @@ struct FileNavigator_Previews: PreviewProvider {
         List(selection: $viewModel.selection) {
 
           FileNavigator(name: "Root",
-                        item: .constant(item),
+                        item: .constant(fileTree.root),
                         parent: .constant(nil),
                         viewModel: viewModel,
                         fileLabel: { cursor, _editing, _ in Text(cursor.name) },
@@ -380,9 +380,11 @@ struct FileNavigator_Previews: PreviewProvider {
 
       } detail: {
 
-        if let file = viewModel.selectedFile {
+        if let uuid = viewModel.selection,
+           let file = fileTree.proxy(for: uuid).file
+        {
 
-          Text(file.contents.text.wrappedValue)
+          Text(file.contents.text)
 
         } else {
 
@@ -394,16 +396,17 @@ struct FileNavigator_Previews: PreviewProvider {
   }
 
   static var previews: some View {
-    let item = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
+    let item = FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
 
-    Container(item: item)
+    Container(fileTree: FileTree(files: item))
   }
 }
 
 struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
   struct Container: View {
-    @State var item  = FileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
+    @StateObject var fileTree
+      = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
     @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
                                                                  selection: nil,
@@ -415,7 +418,7 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
         List(selection: $viewModel.selection) {
 
           FileNavigator(name: "Root",
-                        item: $item,
+                        item: $fileTree.root,
                         parent: .constant(nil),
                         viewModel: viewModel,
                         fileLabel: { cursor, $editedText, _ in
@@ -458,9 +461,11 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
       } detail: {
 
-        if let file = viewModel.selectedFile {
+        if let uuid = viewModel.selection,
+           let file = fileTree.proxy(for: uuid).file
+        {
 
-          Text(file.contents.text.wrappedValue)
+          Text(file.contents.text)
 
         } else {
 

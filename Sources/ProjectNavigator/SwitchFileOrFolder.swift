@@ -13,21 +13,21 @@ import Files
 /// Dispatch on a file or folder choice of a binding, such that the cases receive bindings of the respective component.
 ///
 public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, FolderContent: View>: View {
-  @Binding public var fileOrFolder: FileOrFolder<Contents>
+  @Binding public var fileOrFolder: ProxyFileOrFolder<Contents>
 
-  public let fileCase:   (Binding<File<Contents>>) -> FileContent
-  public let folderCase: (Binding<Folder<Contents>>) -> FolderContent
+  public let fileCase:   (File<Contents>.Proxy) -> FileContent
+  public let folderCase: (Binding<ProxyFolder<Contents>>) -> FolderContent
 
   /// Dispatch subviews on a dynamic file or folder choice.
   ///
   /// - Parameters:
   ///   - fileOrFolder: A file or folder binding.
-  ///   - fileCase: Subview for the file case, binding the file contents.
-  ///   - folderCase: Subview for the folder case, binding teh folder contents.
+  ///   - fileCase: Subview for the file case, receiving a file proxy.
+  ///   - folderCase: Subview for the folder case, binding the folder contents.
   ///
-  public init(fileOrFolder: Binding<FileOrFolder<Contents>>,
-              fileCase: @escaping (Binding<File<Contents>>) -> FileContent,
-              folderCase: @escaping (Binding<Folder<Contents>>) -> FolderContent)
+  public init(fileOrFolder: Binding<ProxyFileOrFolder<Contents>>,
+              fileCase: @escaping (File<Contents>.Proxy) -> FileContent,
+              folderCase: @escaping (Binding<ProxyFolder<Contents>>) -> FolderContent)
   {
     self._fileOrFolder = fileOrFolder
     self.fileCase      = fileCase
@@ -37,9 +37,8 @@ public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, Fold
   public var body: some View {
     switch fileOrFolder {
 
-    case .file(let file):
-      let fileBinding = Binding { return file } set: { fileOrFolder = .file($0) }
-      fileCase(fileBinding)
+    case .file(let proxy):
+      fileCase(proxy)
 
     case .folder(let folder):
       let folderBinding = Binding { return folder } set: { fileOrFolder = .folder($0) }

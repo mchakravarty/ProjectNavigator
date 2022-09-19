@@ -6,6 +6,10 @@
 //
 
 import Foundation
+import os
+
+
+private let logger = Logger(subsystem: "org.justtesting.BundleNavigator", category: "FileOperations")
 
 
 extension Folder {
@@ -20,7 +24,19 @@ extension Folder {
   ///   - index: Optional index at which to insert the new item into the ordered set of children. If no index is given,
   ///       the new child will be added at the first position where it fits alphabetically.
   ///
-  public mutating func add(item: FileOrFolder<Contents>, withPreferredName preferredName: String, at index: Int? = nil) {
+  /// This function only works on folders in proxy trees. (It would be easy to provide a corresponding version on
+  /// folders containing full files.)
+  ///
+  public mutating func add(item: FileOrFolder<File<Contents>, Contents>,
+                           withPreferredName preferredName: String,
+                           at index: Int? = nil)
+  where FileType == File<Contents>.Proxy
+  {
+    // Folders in proxy tree must have a file tree set.
+    guard let fileTree else {
+      logger.error("Folder.add(item:withPreferredName:at:) in a proxy tree with having a file tree set")
+      return
+    }
 
     let ext  = (preferredName as NSString).pathExtension,
         base = (preferredName as NSString).deletingPathExtension
@@ -41,7 +57,7 @@ extension Folder {
     // If we found an unused name, insert the item
     if let name = finalName {
       let insertionIndex = index ?? children.keys.firstIndex{ $0 > name } ?? children.keys.endIndex
-      children.updateValue(item,
+      children.updateValue(item.proxy(within: fileTree),
                            forKey: name,
                            insertingAt: insertionIndex > children.keys.endIndex ? children.keys.endIndex : insertionIndex)
                              // ...in case the caller passes an out of range index
@@ -53,10 +69,15 @@ extension Folder {
   /// - Parameter name: The name of the item to be removed.
   /// - Returns: The removed item or `nil` if there was no item of that name.
   ///
-  public mutating func remove(name: String) -> FileOrFolder<Contents>? {
+  public mutating func remove(name: String) -> FileOrFolder<FileType, Contents>? {
 
-    let index = children.index(forKey: name)
-    return index.map{ children.remove(at: $0).value }
+    if let index = children.index(forKey: name) {
+
+      let item = children.remove(at: index).value
+      fileTree?.removeContainedFiles(item: item)
+      return item
+
+    } else { return nil }
   }
 
   /// Rename the item with to the given new name.
