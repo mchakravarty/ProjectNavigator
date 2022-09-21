@@ -62,12 +62,15 @@ public protocol FileContents: Equatable {
 public protocol FileProtocol<Contents>: Identifiable, Equatable where ID == UUID {
   associatedtype Contents: FileContents
 
+  func sameContents(file: Self) -> Bool
+
   func fileWrapper() throws -> FileWrapper
 }
 
 /// Represents a single file (i.e., a leaf of a folder tree).
 ///
 public struct File<Contents: FileContents>: FileProtocol {
+
   public let id: UUID
 
   /// Id-only representation of a file aka file proxy.
@@ -96,6 +99,13 @@ public struct File<Contents: FileContents>: FileProtocol {
       self.id       = id
       self.fileTree = fileTree
     }
+
+    /// Check whether the contents of self and the given file are the same.
+    ///
+    /// - Parameter file: The file whose contents we compare to.
+    /// - Returns: Whether the contents of the two files is the same.
+    ///
+    public func sameContents(file: Proxy) -> Bool { self.file?.contents == file.file?.contents }
 
     /// Serialise into a fil wrapper.
     ///
@@ -248,7 +258,7 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
     switch self {
 
     case .file(let selfFile):
-      if case let .file(file) = fileOrFolder { return selfFile.id == file.id } else { return false }
+      if case let .file(file) = fileOrFolder { return selfFile.sameContents(file: file) } else { return false }
 
     case .folder(let selfFolder):
       if case let .folder(folder) = fileOrFolder { return selfFolder.sameContents(folder: folder) } else { return false }

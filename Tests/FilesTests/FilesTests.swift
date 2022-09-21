@@ -16,11 +16,11 @@ class FilesTests: XCTestCase {
 
   func testTreeTextInit() throws {
 
-    let payload = Payload(text: "main = print 42"),
-        tree: OrderedDictionary<String, Any>    = ["Main.hs": payload]
+    let payload                              = Payload(text: "main = print 42"),
+        tree: OrderedDictionary<String, Any> = ["Main.hs": payload]
 
-    let treeFiles = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: tree)))
-    let files = Folder<Payload>(children: ["Main.hs" : FileOrFolder(file: File(contents: payload))])
+    let treeFiles = try XCTUnwrap(try? FileOrFolder(folder: FullFolder<Payload>(tree: tree)))
+    let files = FullFolder<Payload>(children: ["Main.hs" : FileOrFolder(file: File(contents: payload))])
     XCTAssert(treeFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
   }
 }

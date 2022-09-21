@@ -27,7 +27,7 @@ extension Folder {
   /// This function only works on folders in proxy trees. (It would be easy to provide a corresponding version on
   /// folders containing full files.)
   ///
-  public mutating func add(item: FileOrFolder<File<Contents>, Contents>,
+  public mutating func add(item: FullFileOrFolder<Contents>,
                            withPreferredName preferredName: String,
                            at index: Int? = nil)
   where FileType == File<Contents>.Proxy
