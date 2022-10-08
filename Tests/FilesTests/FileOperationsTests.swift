@@ -35,7 +35,7 @@ class FileAddTests: XCTestCase {
       // NB: Also tests that we handle out of range indices.
     }
 
-    let treeFiles = try XCTUnwrap(try? FileOrFolder(folder: FullFolder<Payload>(tree: tree)))
+    let treeFiles = try FileOrFolder(folder: FullFolder<Payload>(tree: tree))
     XCTAssert(treeFiles.sameContents(fileOrFolder: result), "Contents doesn't match")
   }
 
@@ -45,11 +45,11 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["C.hs": payload, "A.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["C.hs": payload, "B.hs": payload, "A.hs": payload]
 
-    let result = performOnFolder(folder: try XCTUnwrap(try? FullFolder<Payload>(tree: treeBefore))) { folder in
+    let result = performOnFolder(folder: try FullFolder<Payload>(tree: treeBefore)) { folder in
       folder.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs", at: 1)
     }
 
-    let treeAfterFiles = try XCTUnwrap(try? FileOrFolder(folder: FullFolder<Payload>(tree: treeAfter)))
+    let treeAfterFiles = try FileOrFolder(folder: FullFolder<Payload>(tree: treeAfter))
     XCTAssert(treeAfterFiles.sameContents(fileOrFolder: result), "Contents doesn't match")
   }
 
@@ -59,11 +59,11 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["A.hs": payload, "C.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
 
-    let result = performOnFolder(folder: try XCTUnwrap(try? FullFolder<Payload>(tree: treeBefore))) { folder in
+    let result = performOnFolder(folder: try FullFolder<Payload>(tree: treeBefore)) { folder in
       folder.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs")
     }
 
-    let treeAfterFiles = try XCTUnwrap(try? FileOrFolder(folder: FullFolder<Payload>(tree: treeAfter)))
+    let treeAfterFiles = try FileOrFolder(folder: FullFolder<Payload>(tree: treeAfter))
     XCTAssert(treeAfterFiles.sameContents(fileOrFolder: result), "Contents doesn't match")
   }
 
@@ -73,7 +73,7 @@ class FileAddTests: XCTestCase {
         treeBefore: OrderedDictionary<String, Any> = ["A.hs": payload, "B.hs": payload],
         treeAfter: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "B1.hs": payload]
 
-    let result = performOnFolder(folder: try XCTUnwrap(try? FullFolder<Payload>(tree: treeBefore))) { folder in
+    let result = performOnFolder(folder: try FullFolder<Payload>(tree: treeBefore)) { folder in
       folder.add(item: FileOrFolder(file: File(contents: payload)), withPreferredName: "B.hs")
     }
 
@@ -84,17 +84,17 @@ class FileAddTests: XCTestCase {
 
   class FileRenameTests: XCTestCase {
 
-    /*
     func testRenameSame() throws {
 
       let payload                               = Payload(text: "main = print 42"),
           tree: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
 
-      let filesTree = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: tree)))
-      guard case var .folder(files) = filesTree
-      else { XCTFail("Couldn't initialise"); return }
-      XCTAssert(files.rename(name: "B.hs", to: "B.hs", dontMove: true), "Renaming failed")
-      XCTAssert(filesTree.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+      var initialFolder: Folder<File<Payload>, Payload>!
+      let result = performOnFolder(folder: try FullFolder<Payload>(tree: tree)) { folder in
+        initialFolder = try! folder.snapshot()
+        XCTAssert(folder.rename(name: "B.hs", to: "B.hs", dontMove: true), "Renaming failed")
+      }
+      XCTAssert(result.sameContents(fileOrFolder: FileOrFolder(folder: initialFolder)), "Contents doesn't match")
     }
 
     func testRenameDontMove() throws {
@@ -104,11 +104,12 @@ class FileAddTests: XCTestCase {
           treeBefore: OrderedDictionary<String, Any>  = ["A.hs": payload1, "B.hs": payload2, "C.hs": payload1],
           treeAfter:  OrderedDictionary<String, Any>  = ["A.hs": payload1, "D.hs": payload2, "C.hs": payload1]
 
-      var files = try XCTUnwrap(try? Folder<Payload>(tree: treeBefore))
-      XCTAssert(files.rename(name: "B.hs", to: "D.hs", dontMove: true), "Renaming failed")
+      let result = performOnFolder(folder: try FullFolder<Payload>(tree: treeBefore)) { folder in
+        XCTAssert(folder.rename(name: "B.hs", to: "D.hs", dontMove: true), "Renaming failed")
+      }
 
-      let treeAfterFiles = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: treeAfter)))
-      XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+      let resultModel = FileTree(files: FileOrFolder(folder: try FullFolder<Payload>(tree: treeAfter)))
+      XCTAssert(try resultModel.snapshot().sameContents(fileOrFolder: result), "Contents doesn't match")
     }
 
     func testRenameMove() throws {
@@ -118,11 +119,12 @@ class FileAddTests: XCTestCase {
           treeBefore: OrderedDictionary<String, Any>  = ["A.hs": payload1, "B.hs": payload2, "C.hs": payload1],
           treeAfter:  OrderedDictionary<String, Any>  = ["A.hs": payload1, "C.hs": payload1, "D.hs": payload2]
 
-      var files = try XCTUnwrap(try? Folder<Payload>(tree: treeBefore))
-      XCTAssert(files.rename(name: "B.hs", to: "D.hs", dontMove: false), "Renaming failed")
+      let result = performOnFolder(folder: try FullFolder<Payload>(tree: treeBefore)) { folder in
+        XCTAssert(folder.rename(name: "B.hs", to: "D.hs", dontMove: false), "Renaming failed")
+      }
 
-      let treeAfterFiles = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: treeAfter)))
-      XCTAssert(treeAfterFiles.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+      let resultModel = FileTree(files: FileOrFolder(folder: try FullFolder<Payload>(tree: treeAfter)))
+      XCTAssert(try resultModel.snapshot().sameContents(fileOrFolder: result), "Contents doesn't match")
     }
 
     func testRenameClash() throws {
@@ -130,11 +132,11 @@ class FileAddTests: XCTestCase {
       let payload                               = Payload(text: "main = print 42"),
           tree: OrderedDictionary<String, Any>  = ["A.hs": payload, "B.hs": payload, "C.hs": payload]
 
-      let filesTree = try XCTUnwrap(try? FileOrFolder(folder: Folder<Payload>(tree: tree)))
-      guard case var .folder(files) = filesTree
-      else { XCTFail("Couldn't initialise"); return }
-      XCTAssertFalse(files.rename(name: "B.hs", to: "C.hs"), "Renaming incorrectly succeded")
-      XCTAssert(filesTree.sameContents(fileOrFolder: FileOrFolder(folder: files)), "Contents doesn't match")
+      var initialFolder: Folder<File<Payload>, Payload>!
+      let result = performOnFolder(folder: try FullFolder<Payload>(tree: tree)) { folder in
+        initialFolder = try! folder.snapshot()
+        XCTAssertFalse(folder.rename(name: "B.hs", to: "C.hs"), "Renaming incorrectly succeded")
+      }
+      XCTAssert(result.sameContents(fileOrFolder: FileOrFolder(folder: initialFolder)), "Contents doesn't match")
     }
-   */
   }
