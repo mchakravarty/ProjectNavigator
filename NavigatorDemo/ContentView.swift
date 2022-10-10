@@ -115,7 +115,7 @@ struct FolderContextMenu: View {
 }
 
 struct Navigator: View {
-  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel
 
   @EnvironmentObject var model: NavigatorDemoModel
 
@@ -181,7 +181,7 @@ struct ContentView: View {
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
-  @StateObject private var fileNavigationViewModel = FileNavigatorViewModel<Payload>()
+  @StateObject private var fileNavigationViewModel = FileNavigatorViewModel()
 
   var body: some View {
 

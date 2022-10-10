@@ -22,6 +22,10 @@ extension UTType {
   static let textBundle: UTType = UTType(exportedAs: "org.justtesting.text-bundle")
 }
 
+
+// MARK: -
+// MARK: Payload
+
 struct Payload: FileContents {
 
   /// Text in a file if its a text file containing UTF-8.
@@ -66,6 +70,10 @@ struct Payload: FileContents {
     }
   }
 }
+
+
+// MARK: -
+// MARK: Document
 
 final class NavigatorDemoDocument: ReferenceFileDocument {
   typealias Snapshot = FullFileOrFolder<Payload>

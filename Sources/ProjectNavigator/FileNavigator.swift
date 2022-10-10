@@ -42,8 +42,7 @@ extension View {
 
 /// This class captures a file navigator's view state.
 ///
-public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObject {
-//public final class FileNavigatorViewModel: ObservableObject {
+public final class FileNavigatorViewModel: ObservableObject {
 
   public struct EditedLabel {
     public var id:   UUID
@@ -61,10 +60,6 @@ public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObj
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
   @Published public var editedLabel: EditedLabel?
-
-//  /// Caches bindings to all selectable files by their uuid.
-//  ///
-//  private var fileMap: [UUID: Binding<File<Contents>>] = [:]
 
   /// A file navigator's view state.
   ///
@@ -109,26 +104,6 @@ public final class FileNavigatorViewModel<Contents: FileContents>: ObservableObj
       }
     }
   }
-
-//  /// Register the given file as selectable.
-//  ///
-//  /// - Parameter file: Binding of the file that can be selected.
-//  ///
-//  func register(file fileBinding: Binding<File<Contents>>) {
-//    fileMap[fileBinding.id] = fileBinding
-//  }
-//
-//  /// Deregister the file whose UUID is given as selectable.
-//  ///
-//  /// - Parameter id: UUID of the file that can no longer be selected.
-//  ///
-//  func deregisterFile(for id: UUID) {
-//    _ = fileMap.removeValue(forKey: id)
-//  }
-
-//  /// Binding to the currently selected file, if any.
-//  ///
-//  public var selectedFile: Binding<File<Contents>>? { selection.flatMap{ fileMap[$0] } }
 }
 
 /// A cursor points to an item in the file tree.
@@ -168,7 +143,7 @@ public struct FileNavigator<Payload: FileContents,
   @Binding var item:   ProxyFileOrFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -189,7 +164,7 @@ public struct FileNavigator<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  item: Binding<ProxyFileOrFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Payload>,
+                                 viewModel: FileNavigatorViewModel,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -234,7 +209,7 @@ public struct FileNavigatorFile<Payload: FileContents,
 
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -255,7 +230,7 @@ public struct FileNavigatorFile<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  proxy: File<Payload>.Proxy,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Payload>,
+                                 viewModel: FileNavigatorViewModel,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -282,7 +257,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   @Binding var folder: ProxyFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewModel: FileNavigatorViewModel<Payload>
+  @ObservedObject var viewModel: FileNavigatorViewModel
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -303,7 +278,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  folder: Binding<ProxyFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewModel: FileNavigatorViewModel<Payload>,
+                                 viewModel: FileNavigatorViewModel,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -360,9 +335,9 @@ struct FileNavigator_Previews: PreviewProvider {
   struct Container: View {
     let fileTree: FileTree<Payload>
 
-    @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
-                                                                 selection: nil,
-                                                                 editedLabel: nil)
+    @StateObject var viewModel = FileNavigatorViewModel(expansions: WrappedUUIDSet(),
+                                                        selection: nil,
+                                                        editedLabel: nil)
     var body: some View {
 
       NavigationSplitView {
@@ -408,9 +383,9 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
     @StateObject var fileTree
       = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
-    @StateObject var viewModel = FileNavigatorViewModel<Payload>(expansions: WrappedUUIDSet(),
-                                                                 selection: nil,
-                                                                 editedLabel: nil)
+    @StateObject var viewModel = FileNavigatorViewModel(expansions: WrappedUUIDSet(),
+                                                        selection: nil,
+                                                        editedLabel: nil)
 
     var body: some View {
 
