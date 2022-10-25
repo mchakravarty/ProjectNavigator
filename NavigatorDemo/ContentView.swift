@@ -31,7 +31,8 @@ struct FileContextMenu: View {
 
   @Binding var editedText: String?
 
-  let proxy: File<Payload>.Proxy
+  let proxy:       File<Payload>.Proxy
+  let viewContext: ViewContext
 
   var body: some View {
 
@@ -46,7 +47,7 @@ struct FileContextMenu: View {
     Button(role: .destructive) {
 
       withAnimation {
-        _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
+        viewContext.remove(cursor: cursor)
       }
 
     } label: {
@@ -62,14 +63,15 @@ struct FolderContextMenu: View {
   @Binding var editedText: String?
   @Binding var folder:     ProxyFolder<Payload>
 
+  let viewContext: ViewContext
+
   var body: some View {
 
     Button {
       withAnimation {
-        folder.add(item: FileOrFolder(file: File(contents: Payload(text: ""))),
-                   withPreferredName: "Text.txt")
-
-//                !!!Now we need to be able to edit the name of the newly added file.
+        viewContext.add(item: FileOrFolder(file: File(contents: Payload(text: ""))),
+                        $to: $folder,
+                        withPreferredName: "Text.txt")
       }
     } label: {
       Label("New file", systemImage: "doc.badge.plus")
@@ -77,10 +79,7 @@ struct FolderContextMenu: View {
 
     Button {
       withAnimation {
-        folder.add(item: FileOrFolder(folder: Folder(children: [:])),
-                   withPreferredName: "Folder")
-
-//                !!!Now we need to be able to edit the name of the newly added file.
+        viewContext.add(item: FileOrFolder(folder: Folder(children: [:])), $to: $folder, withPreferredName: "Folder")
       }
     } label: {
       Label("New folder", systemImage: "folder.badge.plus")
@@ -102,7 +101,7 @@ struct FolderContextMenu: View {
       Button(role: .destructive) {
 
         withAnimation {
-          _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
+          viewContext.remove(cursor: cursor)
         }
 
       } label: {
@@ -115,41 +114,40 @@ struct FolderContextMenu: View {
 }
 
 struct Navigator: View {
-  @ObservedObject var viewModel: FileNavigatorViewModel
+  @ObservedObject var viewState: FileNavigatorViewState
 
   @EnvironmentObject var model: NavigatorDemoModel
 
+  @Environment(\.undoManager) var undoManager: UndoManager?
+
   var body: some View {
 
+    let viewContext = ViewContext(viewState: viewState, model: model, undoManager: undoManager)
     NavigationSplitView {
 
-      List(selection: $viewModel.selection) {
+      List(selection: $viewState.selection) {
 
         FileNavigator(name: model.name,
                       item: $model.document.texts.root,
                       parent: .constant(nil),
-                      viewModel: viewModel)
+                      viewState: viewState)
         { cursor, $editedText, proxy in
 
           EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
-            .onSubmit {
-              if let newName = editedText {
-                _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
-                editedText = nil
-              }
-            }
-            .contextMenu{ FileContextMenu(cursor: cursor, editedText: $editedText, proxy: proxy) }
+            .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
+            .contextMenu{ FileContextMenu(cursor: cursor,
+                                          editedText: $editedText,
+                                          proxy: proxy,
+                                          viewContext: viewContext) }
 
         } folderLabel: { cursor, $editedText, $folder in
 
           EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
-            .onSubmit {
-              if let newName = editedText {
-                _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
-                editedText = nil
-              }
-            }
-            .contextMenu{ FolderContextMenu(cursor: cursor, editedText: $editedText, folder: $folder) }
+            .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
+            .contextMenu{ FolderContextMenu(cursor: cursor,
+                                            editedText: $editedText,
+                                            folder: $folder,
+                                            viewContext: viewContext) }
 
         }
         .navigatorFilter{ $0.first != Character(".") }
@@ -158,7 +156,7 @@ struct Navigator: View {
 
     } detail: {
 
-      if let uuid  = viewModel.selection,
+      if let uuid  = viewState.selection,
          let $file = Binding(model.document.texts.proxy(for: uuid).binding) {
 
         if let $text = Binding($file.contents.text) {
@@ -181,24 +179,24 @@ struct ContentView: View {
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
-  @StateObject private var fileNavigationViewModel = FileNavigatorViewModel()
+  @StateObject private var fileNavigationViewState = FileNavigatorViewState()
 
   var body: some View {
 
-    Navigator(viewModel: fileNavigationViewModel)
+    Navigator(viewState: fileNavigationViewState)
       .task {
         if let savedExpansions = expansions {
-          fileNavigationViewModel.expansions = savedExpansions
+          fileNavigationViewState.expansions = savedExpansions
         }
-        for await newExpansions in fileNavigationViewModel.$expansions.values {
+        for await newExpansions in fileNavigationViewState.$expansions.values {
           expansions = newExpansions
         }
       }
       .task {
         if let savedSelection = selection {
-          fileNavigationViewModel.selection = savedSelection
+          fileNavigationViewState.selection = savedSelection
         }
-        for await newSelection in fileNavigationViewModel.$selection.values {
+        for await newSelection in fileNavigationViewState.$selection.values {
           selection = newSelection
         }
       }
