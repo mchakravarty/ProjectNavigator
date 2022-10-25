@@ -435,9 +435,17 @@ public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiab
   /// Yield an up to date file wrapper for the folder.
   ///
   public func fileWrapper() throws -> FileWrapper {
+
+    // It's curcial that we set the dictionary keys as preferred file names as we keep the original versions of file
+    // wrappers of unmodified as is (for efficiency) and they may contain an outdated file name if the file was renamed
+    // in the meantime.
+    let childrenAsFileWrappers = try children.map{ (key, value) in
+      let fileWrapper = try value.fileWrapper()
+      fileWrapper.preferredFilename = key
+      return fileWrapper
+    }
     return FileWrapper(directoryWithFileWrappers:
-                        try Dictionary(uniqueKeysWithValues: zip(children.keys,
-                                                                 children.values.map{ try $0.fileWrapper() })))
+                        Dictionary(uniqueKeysWithValues: zip(children.keys, childrenAsFileWrappers)))
   }
 
   /// Yield this item's file map.

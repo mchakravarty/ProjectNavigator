@@ -28,8 +28,8 @@ public struct EditableLabel: View {
   ///  Editing is aborted and the text before editing restored on exit.
   ///
   public init(_ text: String, systemImage: String, editedText: Binding<String?>) {
-    self.text      = text
-    self.image     = Image(systemName: systemImage)
+    self.text        = text
+    self.image       = Image(systemName: systemImage)
     self._editedText = editedText
   }
 
