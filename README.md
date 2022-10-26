@@ -10,7 +10,7 @@ The `Files` library serves as the model representing a file tree that can be mar
 
 The `File` data type is generic in a user-defined `Payload` (i.e., the contents of files), whose minimal requirements are given by a protocol of the same name. Multiple file types can be seamlessly combined. As far as possible, file trees are represented as value types and updated via bindings to stay true to the spirit of SwiftUI.
 
-## `FileNavigator`
+## `ProjectNavigator`
 
 The `FileNavigator` view provides navigation to associated files inside an enclosing `NavigationSplitView`. Both navigation labels as well as the navigation destination view are freely configurable. Context menus can be used to facilitate editing of the file tree. Editable text labels, for the inline editing of file names, are available.
 
