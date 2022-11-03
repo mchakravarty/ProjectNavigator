@@ -153,6 +153,10 @@ struct Navigator: View {
         .navigatorFilter{ $0.first != Character(".") }
       }
       .listStyle(.sidebar)
+      .navigationTitle(model.name)
+#if os(iOS)
+      .navigationBarTitleDisplayMode(.large)
+#endif
 
     } detail: {
 
@@ -167,6 +171,7 @@ struct Navigator: View {
         } else { Text("Not a UTF-8 text file") }
 
       } else { Text("Select a file") }
+
     }
   }
 }
@@ -200,6 +205,9 @@ struct ContentView: View {
           selection = newSelection
         }
       }
+#if os(iOS)
+      .toolbar(.hidden, for: .navigationBar)
+#endif
   }
 }
 
