@@ -36,24 +36,30 @@ public struct EditableLabel: View {
   public var body: some View {
 
     Label {
-      if let unwrappedEditedText = Binding(unwrap: $editedText) {
 
-        TextField("", text: unwrappedEditedText)
+      TextField(text: .constant(text), label: { EmptyView() })
+        .hidden()
+        .overlay(alignment: .leading) {
+
+          if let $unwrappedEditedText = Binding(unwrap: $editedText) {
+
+            TextField(text: $unwrappedEditedText, label: { EmptyView() })
+              .focused($isFocused)
+              .onAppear{
+                isFocused = true
+              }
+              .disableAutocorrection(true)
 #if os(iOS)
-          .textInputAutocapitalization(.never)
+              .textInputAutocapitalization(.never)
 #endif
-          .disableAutocorrection(true)
-          .focused($isFocused)
-          .onAppear{
-            isFocused = true
-          }
 #if os(macOS)
-          .onExitCommand {
-            editedText = nil
-          }
+              .onExitCommand {
+                editedText = nil
+              }
 #endif
 
-      } else { Text(text) }
+          } else { Text(text) }
+        }
 
     } icon: { image }
   }
