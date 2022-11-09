@@ -161,7 +161,10 @@ struct Navigator: View {
     } detail: {
 
       if let uuid  = viewState.selection,
-         let $file = Binding(model.document.texts.proxy(for: uuid).binding) {
+         // NB: We need our own unwrapping version here (not the implicitly unwrapping one from Apple); otherwise,
+         //     we crash when removing the currently selected file. It would be better to avoid the crash in a
+         //     different manner.
+         let $file = Binding(unwrap: model.document.texts.proxy(for: uuid).binding) {
 
         if let $text = Binding($file.contents.text) {
 

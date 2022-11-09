@@ -48,13 +48,13 @@ extension ViewContext {
   ///   The binding to the edited name is nil'ed out to indicate the completion of editing.
   ///
   func rename(cursor: FileNavigatorCursor<Payload>, @Binding to editedText: String?) {
+    guard let newName = editedText else { return }
 
-    if let newName = editedText {
+    registerUndo {
 
       _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
       editedText = nil
 
-      undoManager?.registerUndo(withTarget: model) { _ in }
     }
   }
 
@@ -69,9 +69,9 @@ extension ViewContext {
   ///
   func add(item: FullFileOrFolder<Payload>, @Binding to folder: ProxyFolder<Payload>, withPreferredName preferredName: String) {
 
-    folder.add(item: item, withPreferredName: preferredName)
-
-    undoManager?.registerUndo(withTarget: model) { _ in }
+    registerUndo {
+      folder.add(item: item, withPreferredName: preferredName)
+    }
   }
 
   /// Remove the item idenfified by the given cursor.
@@ -80,8 +80,32 @@ extension ViewContext {
   ///
   func remove(cursor: FileNavigatorCursor<Payload>) {
 
-    _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
+    registerUndo {
+      _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
+    }
+  }
 
-    undoManager?.registerUndo(withTarget: model) { _ in }
+  /// Wrap a modification of the model state into a registration with the undo manager. On undo, we simply reset the
+  /// state and redraw the UI.
+  ///
+  /// During undo, register a redo in a symmetric manner.
+  ///
+  private func registerUndo(action: () -> Void) {
+
+    // Preserve old value for undo
+    let oldTextsCopy = FileTree<Payload>(fileTree: model.document.texts)
+
+    // Perform action
+    action()
+
+    // Register undoing the change
+    undoManager?.registerUndo(withTarget: model) { ourModel in
+      registerUndo {
+
+        ourModel.objectWillChange.send()  // Non-local change needs to be broadcast to trigger SwiftUI redraw
+        ourModel.document.texts.set(to: oldTextsCopy)
+
+      }
+    }
   }
 }

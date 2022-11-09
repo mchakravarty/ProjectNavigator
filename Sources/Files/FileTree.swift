@@ -39,7 +39,14 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
     self.root = files.proxy(within: self)
   }
 
+  /// Clone a file tree.
+  ///
+  public init(fileTree: FileTree<Contents>) {
+    self.root  = fileTree.root
+    self.files = fileTree.files
+  }
 
+  
   // MARK: Adding and removing files
 
   /// Add a file to the file tree, returning it's proxy.
@@ -111,6 +118,18 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   /// - Parameter file: The fiel to update.
   ///
   internal func update(file: File<Contents>) { if files[file.id] != nil { files.updateValue(file, forKey: file.id) } }
+
+
+  // MARK: Set file tree
+
+  /// Set the current file tree's payload to the values of the given file tree.
+  ///
+  /// - Parameter fileTree: The file tree whose contents ought to be copied.
+  ///
+  public func set(to fileTree: FileTree<Contents>) {
+    root  = fileTree.root
+    files = fileTree.files
+  }
 }
 
 

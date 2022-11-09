@@ -69,15 +69,23 @@ public struct EditableLabel: View {
 // MARK: -
 // MARK: Helper
 
+// TODO: This definition should go into a more general module.
 extension Binding {
 
-  // Inspired by https://pointfree.co as an alternative to the force unwrapping version of SwiftUI.
-  init?(unwrap binding: Binding<Value?>) {
-    guard let wrappedValue = binding.wrappedValue
+  /// Produce a binding to the non-nil subset of a binding of an optional value. It uses the initial value as a default
+  /// when queried (`get`) while the original binding returns nil.
+  ///
+  /// - Parameter binding: The original binding to an optional value.
+  ///
+  /// Inspired by https://pointfree.co as an alternative to the force unwrapping version of SwiftUI.
+  ///
+  public init?(unwrap binding: Binding<Value?>) {
+    guard let value = binding.wrappedValue
     else { return nil }
 
     self.init(
-      get: { wrappedValue },
+             // TODO: The last delivered value would be better, but that isn't available...
+      get: { binding.wrappedValue ?? value },
       set: { binding.wrappedValue = $0 }
     )
   }
