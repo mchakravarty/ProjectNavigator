@@ -17,3 +17,7 @@ The `FileNavigator` view provides navigation to associated files inside an enclo
 ## NavigatorDemo
 
 The folder [`NavigatorDemo`](NavigatorDemo) contains a simple cross-platform sample application that facilitates the navigation and editing of a bundle of text files. This document-based app uses `ReferenceFileDocument` for its document model. Moreover, it demonstrates the use of editable labels and of context menus at labels. An Xcode workspace including the `ProjectNavigator` package together with the `NavigationDemo` sample app is contained in [`NavigatorDemo.xcworkspace`](NavigatorDemo.xcworkspace).
+
+<img src="app-demo-images/NavigatorDemo_macOS.png">
+
+<img src="app-demo-images/NavigatorDemo_iOS.png">
