@@ -14,6 +14,41 @@ The `File` data type is generic in a user-defined `Payload` (i.e., the contents 
 
 The `FileNavigator` view provides navigation to associated files inside an enclosing `NavigationSplitView`. Both navigation labels as well as the navigation destination view are freely configurable. Context menus can be used to facilitate editing of the file tree. Editable text labels, for the inline editing of file names, are available.
 
+Simple usage (without context menus, editable labels, etc.) is as follows:
+
+```Swift
+var body: some View {
+
+  NavigationSplitView {
+    List(selection: $viewState.selection) {
+
+      FileNavigator(name: "Root",
+                    item: .constant(fileTree.root),
+                    parent: .constant(nil),
+                    viewState: viewState,
+                    fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                    folderLabel: { cursor, _editing, _ in Text(cursor.name) })
+
+    }
+    .navigationTitle("Entries")
+
+  } detail: {
+
+    if let uuid = viewState.selection,
+       let file = fileTree.proxy(for: uuid).file
+    {
+
+      Text(file.contents.text)
+
+    } else {
+
+      Text("Select a file")
+
+    }
+  }
+}
+```
+
 ## NavigatorDemo
 
 The folder [`NavigatorDemo`](NavigatorDemo) contains a simple cross-platform sample application that facilitates the navigation and editing of a bundle of text files. This document-based app uses `ReferenceFileDocument` for its document model. Moreover, it demonstrates the use of editable labels and of context menus at labels. An Xcode workspace including the `ProjectNavigator` package together with the `NavigationDemo` sample app is contained in [`NavigatorDemo.xcworkspace`](NavigatorDemo.xcworkspace).
