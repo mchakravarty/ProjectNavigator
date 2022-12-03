@@ -56,3 +56,10 @@ The folder [`NavigatorDemo`](NavigatorDemo) contains a simple cross-platform sam
 <img src="app-demo-images/NavigatorDemo_macOS.png">
 
 <img src="app-demo-images/NavigatorDemo_iOS.png">
+
+
+## License
+
+Copyright [2022] Manuel M. T. Chakravarty. 
+
+Distributed under the Apache-2.0 license — see the [license file](LICENSE) for details.
