@@ -1,5 +1,8 @@
 # ProjectNavigator
 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmchakravarty%2FProjectNavigator%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/mchakravarty/ProjectNavigator)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fmchakravarty%2FProjectNavigator%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/mchakravarty/ProjectNavigator)
+
 *Requirements:* This package requires Xcode 14.1 and SwiftUI APIs that are available from i(Pad)OS 16 and macOS 13 (Ventura).
 
 This Swift package offers support for SwiftUI project navigation for macOS and iOS. At the core is a file tree navigator that can be used inside a `NavigationSplitView`. The package consists of two libraries: (1) `Files` and (2) `ProjectNavigator`. 
