@@ -1,6 +1,6 @@
 //
 //  WrappedUUIDSet.swift
-//  HaskellApp
+//  ProjectNavigator
 //
 //  Created by Manuel M T Chakravarty on 14/11/2021.
 //

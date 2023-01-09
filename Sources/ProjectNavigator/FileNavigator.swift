@@ -151,7 +151,7 @@ public struct FileNavigator<Payload: FileContents,
 
   // TODO: We also need a version of the initialiser that takes a `LocalizedStringKey`.
 
-  /// Creates a navigator for the given file item. The navigator needs to be contained in a `NavigationView`.
+  /// Creates a navigator for the given file item. The navigator needs to be contained in a `NavigationSplitView`.
   ///
   /// - Parameters:
   ///   - name: The name of the file item.
@@ -217,10 +217,10 @@ public struct FileNavigatorFile<Payload: FileContents,
 
   // TODO: We probably also need a version of the initialiser that takes a `LocalizedStringKey`.
 
-  /// Creates a navigation link for a single file. The link needs to be contained in a `NavigationView`.
+  /// Creates a navigation link for a single file. The link needs to be contained in a `NavigationSplitView`.
   ///
   /// - Parameters:
-  ///   - name: The name of the file item.
+  ///   - name: The name of the file.
   ///   - proxy: The proxy of the file being represented.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
@@ -247,10 +247,13 @@ public struct FileNavigatorFile<Payload: FileContents,
     let cursor            = FileNavigatorCursor(name: name, parent: $parent),
         editedTextBinding = viewState.editedText(for: proxy.id)
 
-    fileLabel(cursor, editedTextBinding, proxy)
+    // NB: Need an explicit link here to ensure that a single toplevel file is selectable, too.
+    NavigationLink(value: proxy.id) { fileLabel(cursor, editedTextBinding, proxy) }
   }
 }
 
+/// Represents a folder in a navigation view.
+///
 public struct FileNavigatorFolder<Payload: FileContents,
                                   FileLabelView: View,
                                   FolderLabelView: View>: View {
@@ -265,7 +268,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
   @Environment(\.navigatorFilter) var navigatorFilter: (String) -> Bool
 
-  /// Creates a navigator for the given file item. The navigator needs to be contained in a `NavigationView`.
+  /// Creates a navigator for the given folder. The navigator needs to be contained in a `NavigationSplitView`.
   ///
   /// - Parameters:
   ///   - name: The name of the folder item.
@@ -312,7 +315,8 @@ public struct FileNavigatorFolder<Payload: FileContents,
       let cursor            = FileNavigatorCursor(name: name, parent: $parent),
           editedTextBinding = viewState.editedText(for: folder.id)
 
-      folderLabel(cursor, editedTextBinding, $folder)
+      // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
+      NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
 
     }
   }
@@ -453,5 +457,52 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
   static var previews: some View {
     Container()
+  }
+}
+
+struct FileNavigatorSingleFile_Previews: PreviewProvider {
+
+  struct Container: View {
+    let fileTree: FileTree<Payload>
+
+    @StateObject var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(),
+                                                        selection: nil,
+                                                        editedLabel: nil)
+    var body: some View {
+
+      NavigationSplitView {
+        List(selection: $viewState.selection) {
+
+          FileNavigator(name: "TheFile",
+                        item: .constant(fileTree.root),
+                        parent: .constant(nil),
+                        viewState: viewState,
+                        fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                        folderLabel: { cursor, _editing, _ in Text(cursor.name) })
+
+        }
+        .navigationTitle("Entries")
+
+      } detail: {
+
+        if let uuid = viewState.selection,
+           let file = fileTree.proxy(for: uuid).file
+        {
+
+          Text(file.contents.text)
+
+        } else {
+
+          Text("Select a file")
+
+        }
+      }
+    }
+  }
+
+  static var previews: some View {
+    let item = FullFileOrFolder(file: File<Payload>(contents: Payload(text: "Awesome contents")))
+
+    Container(fileTree: FileTree(files: item))
   }
 }
