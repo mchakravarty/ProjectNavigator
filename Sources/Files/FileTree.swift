@@ -7,6 +7,7 @@
 //  File tree objects that separate the tree structure from the file contents, to facilitate editing file trees and
 //  their contents in SwiftUI navigation split views.
 
+import System
 import SwiftUI
 
 
@@ -21,6 +22,9 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
 
   /// The root of the file tree.
   ///
+  /// The property is public, so that we can take a binding. However, modifications ought to happen via the provided
+  /// file operations to ensure the consistent change of all derived information maintained by the file tree.
+  ///
   /// Implicitly optional to allow for a circular dependency during initialisation.
   /// 
   @Published public var root: ProxyFileOrFolder<Contents>!
@@ -28,6 +32,10 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   /// All files contained in the file tree.
   ///
   @Published private var files: [UUID: File<Contents>] = [:]
+
+  /// The relative path of all files and folders of this file tree *without* the root name.
+  ///
+  private var filePaths: [UUID: FilePath] = [:]
 
 
   // MARK: Initialisers
@@ -42,8 +50,9 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   /// Clone a file tree.
   ///
   public init(fileTree: FileTree<Contents>) {
-    self.root  = fileTree.root
-    self.files = fileTree.files
+    self.root      = fileTree.root
+    self.files     = fileTree.files
+    self.filePaths = fileTree.filePaths
   }
 
   
@@ -51,7 +60,7 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
 
   /// Add a file to the file tree, returning it's proxy.
   ///
-  public func addFile(file: File<Contents>) -> File<Contents>.Proxy {
+  internal func addFile(file: File<Contents>) -> File<Contents>.Proxy {
     files.updateValue(file, forKey: file.id)
     return File.Proxy(id: file.id, within: self)
   }
@@ -60,13 +69,16 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   ///
   /// - Parameter item: The subtree whose files are to be removed.
   ///
-  public func removeContainedFiles<FileType: FileProtocol>(item: FileOrFolder<FileType, Contents>) {
+  /// Also removes the file paths of all affected files and folders.
+  ///
+  internal func removeContainedFiles<FileType: FileProtocol>(item: FileOrFolder<FileType, Contents>) {
     switch item {
     case .file(let file):
       files.removeValue(forKey: file.id)
     case .folder(let folder):
       for item in folder.children.values { removeContainedFiles(item: item) }
     }
+    filePaths.removeValue(forKey: item.id)
   }
 
 
@@ -115,9 +127,40 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
 
   /// Update a given file if it exists in this file tree.
   ///
-  /// - Parameter file: The fiel to update.
+  /// - Parameter file: The file to update.
   ///
   internal func update(file: File<Contents>) { if files[file.id] != nil { files.updateValue(file, forKey: file.id) } }
+
+
+  // MARK: File path cache
+
+  /// Yield the file path assoicated with the item whose `UUID` is given.
+  ///
+  /// - Parameter id: The `UUID` of the item whose file path ought to be returned.
+  /// - Returns: The file path of the specified item.
+  ///
+  /// Returns the empty file path for the root item or any unknown item.
+  ///
+  public func filePath(of id: UUID) -> FilePath { filePaths[id] ?? FilePath() }
+
+  /// Adds the file path for an item located within a given folder.
+  ///
+  /// - Parameters:
+  ///   - id: The `UUID` of the item whose file path is to be added.
+  ///   - name: The item's file name.
+  ///   - folder: The `UUID` of the folder containing the item.
+  ///
+  internal func addFilePath(of id: UUID, named name: String, within folder: UUID) {
+    filePaths[id] = filePath(of: folder).appending(name)
+  }
+
+  /// Removes the file path for the item whose `UUID` is given.
+  ///
+  /// - Parameter of: The `UUID` whose associated file path ought to be removed.
+  ///
+  internal func removeFilePath(of id: UUID) {
+    filePaths.removeValue(forKey: id)
+  }
 
 
   // MARK: Set file tree
@@ -127,8 +170,9 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   /// - Parameter fileTree: The file tree whose contents ought to be copied.
   ///
   public func set(to fileTree: FileTree<Contents>) {
-    root  = fileTree.root
-    files = fileTree.files
+    root      = fileTree.root
+    files     = fileTree.files
+    filePaths = fileTree.filePaths
   }
 }
 

@@ -383,7 +383,7 @@ public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiab
 
   /// The subitems contained in the folder.
   ///
-  public var children: OrderedDictionary<String, FileOrFolder<FileType, Contents>> // {
+  public var children: OrderedDictionary<String, FileOrFolder<FileType, Contents>>
 
   /// The file tree within which this folder has been created *if* the folder contains file proxies.
   ///
@@ -510,6 +510,9 @@ extension Folder {
   public func proxy(within fileTree: FileTree<Contents>) -> Folder<File<Contents>.Proxy, Contents>
   where FileType == File<Contents>
   {
+    // Add file paths for all direct children.
+    for child in children { fileTree.addFilePath(of: child.value.id, named: child.key, within: id) }
+
     return Folder<File<Contents>.Proxy, Contents>(children: children.mapValues{ $0.proxy(within: fileTree) },
                                                   persistentID: id,
                                                   within: fileTree)

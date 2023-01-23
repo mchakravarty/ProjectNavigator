@@ -44,6 +44,8 @@ extension View {
 ///
 public final class FileNavigatorViewState: ObservableObject {
 
+  /// The `UUID` and name of a label that is being edited.
+  ///
   public struct EditedLabel {
     public var id:   UUID
     public var text: String

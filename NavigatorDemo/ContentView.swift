@@ -168,8 +168,14 @@ struct Navigator: View {
 
         if let $text = Binding($file.contents.text) {
 
-          TextEditor(text: $text)
-            .font(.custom("HelveticaNeue", size: 15))
+          VStack(alignment: .leading) {
+
+            Text(model.document.texts.filePath(of: uuid).string)
+              .padding(EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8))
+            TextEditor(text: $text)
+              .font(.custom("HelveticaNeue", size: 15))
+
+          }
 
         } else { Text("Not a UTF-8 text file") }
 

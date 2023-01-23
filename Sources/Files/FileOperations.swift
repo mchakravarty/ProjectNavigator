@@ -56,11 +56,16 @@ extension Folder {
 
     // If we found an unused name, insert the item
     if let name = finalName {
+
+      // Add the file path of the added item. (The file path of subitems will be added by the subsequent `proxy` call.)
+      fileTree.addFilePath(of: item.id, named: name, within: id)
+
       let insertionIndex = index ?? children.keys.firstIndex{ $0 > name } ?? children.keys.endIndex
       children.updateValue(item.proxy(within: fileTree),
                            forKey: name,
                            insertingAt: insertionIndex > children.keys.endIndex ? children.keys.endIndex : insertionIndex)
                              // ...in case the caller passes an out of range index
+
     }
   }
 
@@ -74,7 +79,7 @@ extension Folder {
     if let index = children.index(forKey: name) {
 
       let item = children.remove(at: index).value
-      fileTree?.removeContainedFiles(item: item)
+      fileTree?.removeContainedFiles(item: item)      // NB: this will also remove the file paths
       return item
 
     } else { return nil }
@@ -90,6 +95,17 @@ extension Folder {
   /// - Returns: `true` iff the item exists and now carries the name `newName`.
   ///
   public mutating func rename(name: String, to newName: String, dontMove: Bool = false) -> Bool {
+
+    // Apply renaming recursively down the tree.
+    func renameFilePaths(of item: FileOrFolder<FileType,Contents>, named name: String, within folder: UUID) {
+      fileTree?.addFilePath(of: item.id, named: name, within: folder)
+      switch item {
+      case .file: break
+      case .folder(let folder):
+        for child in folder.children { renameFilePaths(of: child.value, named: child.key, within: folder.id) }
+      }
+    }
+
     if name == newName || !children.keys.contains(newName),      // crucial to test for collision *before* removing
        let index = children.index(forKey: name)
     {
@@ -97,6 +113,7 @@ extension Folder {
       let item     = children.remove(at: index).value,
           newIndex = dontMove ? index : children.keys.firstIndex{ $0 > newName } ?? children.keys.endIndex
       children.updateValue(item, forKey: newName, insertingAt: newIndex)
+      renameFilePaths(of: item, named: newName, within: id)
       return true
 
     } else { return false }
