@@ -170,7 +170,7 @@ struct Navigator: View {
 
           VStack(alignment: .leading) {
 
-            Text(model.document.texts.filePath(of: uuid).string)
+            Text(model.name + "/" + model.document.texts.filePath(of: uuid).string)
               .padding(EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8))
             TextEditor(text: $text)
               .font(.custom("HelveticaNeue", size: 15))
