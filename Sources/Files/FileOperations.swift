@@ -74,6 +74,7 @@ extension Folder {
   /// - Parameter name: The name of the item to be removed.
   /// - Returns: The removed item or `nil` if there was no item of that name.
   ///
+  @discardableResult
   public mutating func remove(name: String) -> FileOrFolder<FileType, Contents>? {
 
     if let index = children.index(forKey: name) {
