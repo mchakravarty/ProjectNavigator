@@ -42,7 +42,8 @@ extension View {
 
 /// This class captures a file navigator's view state.
 ///
-public final class FileNavigatorViewState: ObservableObject {
+@Observable
+public final class FileNavigatorViewState {
 
   /// The `UUID` and name of a label that is being edited.
   ///
@@ -53,15 +54,15 @@ public final class FileNavigatorViewState: ObservableObject {
 
   /// Set of `UUID`s of all expanded folders.
   ///
-  @Published public var expansions: WrappedUUIDSet
+  public var expansions: WrappedUUIDSet
 
   /// The `UUID` of the selected file, if any.
   ///
-  @Published public var selection: FileOrFolder.ID?
+  public var selection: FileOrFolder.ID?
 
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
-  @Published public var editedLabel: EditedLabel?
+  public var editedLabel: EditedLabel?
 
   /// A file navigator's view state.
   ///
@@ -145,7 +146,7 @@ public struct FileNavigator<Payload: FileContents,
   @Binding var item:   ProxyFileOrFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewState: FileNavigatorViewState
+  var viewState: FileNavigatorViewState
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -211,7 +212,7 @@ public struct FileNavigatorFile<Payload: FileContents,
 
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewState: FileNavigatorViewState
+  var viewState: FileNavigatorViewState
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -262,7 +263,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   @Binding var folder: ProxyFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  @ObservedObject var viewState: FileNavigatorViewState
+  @Bindable var viewState: FileNavigatorViewState
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -341,9 +342,8 @@ struct FileNavigator_Previews: PreviewProvider {
   struct Container: View {
     let fileTree: FileTree<Payload>
 
-    @StateObject var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(),
-                                                        selection: nil,
-                                                        editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+
     var body: some View {
 
       NavigationSplitView {
@@ -389,9 +389,7 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
     @StateObject var fileTree
       = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
-    @StateObject var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(),
-                                                        selection: nil,
-                                                        editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
 
     var body: some View {
 
@@ -467,9 +465,7 @@ struct FileNavigatorSingleFile_Previews: PreviewProvider {
   struct Container: View {
     let fileTree: FileTree<Payload>
 
-    @StateObject var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(),
-                                                        selection: nil,
-                                                        editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
     var body: some View {
 
       NavigationSplitView {

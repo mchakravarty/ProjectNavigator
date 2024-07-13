@@ -114,7 +114,7 @@ struct FolderContextMenu: View {
 }
 
 struct Navigator: View {
-  @ObservedObject var viewState: FileNavigatorViewState
+  @Bindable var viewState: FileNavigatorViewState
 
   @EnvironmentObject var model: NavigatorDemoModel
 
@@ -193,26 +193,26 @@ struct ContentView: View {
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
-  @StateObject private var fileNavigationViewState = FileNavigatorViewState()
+  @State private var fileNavigationViewState = FileNavigatorViewState()
 
   var body: some View {
 
     Navigator(viewState: fileNavigationViewState)
-      .task {
+      .onAppear {
         if let savedExpansions = expansions {
           fileNavigationViewState.expansions = savedExpansions
         }
-        for await newExpansions in fileNavigationViewState.$expansions.values {
-          expansions = newExpansions
-        }
       }
-      .task {
+      .onChange(of: fileNavigationViewState.expansions) {
+          expansions = fileNavigationViewState.expansions
+      }
+      .onAppear {
         if let savedSelection = selection {
           fileNavigationViewState.selection = savedSelection
         }
-        for await newSelection in fileNavigationViewState.$selection.values {
-          selection = newSelection
-        }
+      }
+      .onChange(of: fileNavigationViewState.selection) {
+          selection = fileNavigationViewState.selection
       }
 #if os(iOS)
       .toolbar(.hidden, for: .navigationBar)

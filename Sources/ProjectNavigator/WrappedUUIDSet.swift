@@ -8,7 +8,7 @@
 import Foundation
 
 
-public struct WrappedUUIDSet {
+public struct WrappedUUIDSet: Equatable {
 
   public var ids: Set<UUID> = []
 
