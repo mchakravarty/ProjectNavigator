@@ -95,6 +95,7 @@ extension Folder {
   ///       otherwise, the renamed item will be moved to the first position where it fits alphabetically.
   /// - Returns: `true` iff the item exists and now carries the name `newName`.
   ///
+  @discardableResult
   public mutating func rename(name: String, to newName: String, dontMove: Bool = false) -> Bool {
 
     // Apply renaming recursively down the tree.
