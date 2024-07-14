@@ -8,6 +8,7 @@
 //  their contents in SwiftUI navigation split views.
 
 import System
+import Observation
 import SwiftUI
 
 
@@ -18,7 +19,8 @@ import SwiftUI
 
 /// A file and folder tree structure with separated out and uuid-addressable files.
 ///
-public final class FileTree<Contents: FileContents>: ObservableObject {
+@Observable
+public final class FileTree<Contents: FileContents> {
 
   /// The root of the file tree.
   ///
@@ -27,14 +29,15 @@ public final class FileTree<Contents: FileContents>: ObservableObject {
   ///
   /// Implicitly optional to allow for a circular dependency during initialisation.
   /// 
-  @Published public var root: ProxyFileOrFolder<Contents>!
+  public var root: ProxyFileOrFolder<Contents>!
 
   /// All files contained in the file tree.
   ///
-  @Published private var files: [UUID: File<Contents>] = [:]
+  private var files: [UUID: File<Contents>] = [:]
 
   /// The relative path of all files and folders of this file tree *without* the root name.
   ///
+  @ObservationIgnored
   private var filePaths: [UUID: FilePath] = [:]
 
 

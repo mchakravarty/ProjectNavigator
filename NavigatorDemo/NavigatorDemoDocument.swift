@@ -7,6 +7,7 @@
 //  The persistent representation of our documents is a nested folder structure containing text files and possibly also
 //  a file map.
 
+import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 import os
@@ -75,10 +76,11 @@ struct Payload: FileContents {
 // MARK: -
 // MARK: Document
 
+@Observable
 final class NavigatorDemoDocument: ReferenceFileDocument {
   typealias Snapshot = FullFileOrFolder<Payload>
 
-  @Published var texts: FileTree<Payload>
+  var texts: FileTree<Payload>
 
   static var readableContentTypes: [UTType] { [.textBundle] }
 

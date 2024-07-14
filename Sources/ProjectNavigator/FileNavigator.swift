@@ -6,6 +6,7 @@
 //
 //  A file navigator enables the navigation of a file tree in a navigation view.
 
+import Observation
 import SwiftUI
 import OrderedCollections
 
@@ -386,7 +387,7 @@ struct FileNavigator_Previews: PreviewProvider {
 struct FileNavigatorEditLabel_Previews: PreviewProvider {
 
   struct Container: View {
-    @StateObject var fileTree
+    @State var fileTree
       = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
     @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)

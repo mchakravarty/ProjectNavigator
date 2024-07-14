@@ -101,10 +101,7 @@ extension ViewContext {
     // Register undoing the change
     undoManager?.registerUndo(withTarget: model) { ourModel in
       registerUndo {
-
-        ourModel.objectWillChange.send()  // Non-local change needs to be broadcast to trigger SwiftUI redraw
         ourModel.document.texts.set(to: oldTextsCopy)
-
       }
     }
   }

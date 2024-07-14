@@ -34,7 +34,7 @@ extension Folder {
   {
     // Folders in proxy tree must have a file tree set.
     guard let fileTree else {
-      logger.error("Folder.add(item:withPreferredName:at:) in a proxy tree with having a file tree set")
+      logger.error("Folder.add(item:withPreferredName:at:) in a proxy tree without having a file tree set")
       return
     }
 

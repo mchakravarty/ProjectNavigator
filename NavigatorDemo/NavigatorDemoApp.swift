@@ -5,16 +5,18 @@
 //  Created by Manuel M T Chakravarty on 16/05/2022.
 //
 
+import Observation
 import SwiftUI
 
 
 // MARK: -
 // MARK: App model
 
-final class NavigatorDemoModel: ObservableObject {
+@Observable
+final class NavigatorDemoModel {
 
-  @Published var name:     String
-  @Published var document: NavigatorDemoDocument
+  var name:     String
+  var document: NavigatorDemoDocument
 
   init(name: String, document: NavigatorDemoDocument) {
     self.name       = name
@@ -29,15 +31,14 @@ final class NavigatorDemoModel: ObservableObject {
 @main
 struct NavigatorDemoApp: App {
 
-  @StateObject var navigatorDemoModel = NavigatorDemoModel(name: "",
-                                                           document: NavigatorDemoDocument())
+  @State var navigatorDemoModel = NavigatorDemoModel(name: "", document: NavigatorDemoDocument())
 
   var body: some Scene {
 
     DocumentGroup(newDocument: { NavigatorDemoDocument(text: "Beautiful text!") }) { file in
 
       ContentView()
-        .environmentObject(navigatorDemoModel)
+        .environment(navigatorDemoModel)
         .onAppear {
           navigatorDemoModel.name     = file.fileURL?.lastPathComponent ?? "Untitled"
           navigatorDemoModel.document = file.document

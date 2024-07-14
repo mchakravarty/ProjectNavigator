@@ -116,12 +116,13 @@ struct FolderContextMenu: View {
 struct Navigator: View {
   @Bindable var viewState: FileNavigatorViewState
 
-  @EnvironmentObject var model: NavigatorDemoModel
+  @Environment(NavigatorDemoModel.self) private var model: NavigatorDemoModel
 
   @Environment(\.undoManager) var undoManager: UndoManager?
 
   var body: some View {
 
+    @Bindable var model = model
     let viewContext = ViewContext(viewState: viewState, model: model, undoManager: undoManager)
     NavigationSplitView {
 
@@ -231,7 +232,7 @@ struct ContentView_Previews: PreviewProvider {
 
     var body: some View {
       ContentView()
-        .environmentObject(NavigatorDemoModel(name: "Test", document: document))
+        .environment(NavigatorDemoModel(name: "Test", document: document))
     }
   }
 
