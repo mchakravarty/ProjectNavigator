@@ -114,7 +114,7 @@ struct FolderContextMenu: View {
 }
 
 struct Navigator: View {
-  @Bindable var viewState: FileNavigatorViewState
+  @Bindable var viewState: FileNavigatorViewState<Payload>
 
   @Environment(NavigatorDemoModel.self) private var model: NavigatorDemoModel
 
@@ -126,38 +126,54 @@ struct Navigator: View {
     let viewContext = ViewContext(viewState: viewState, model: model, undoManager: undoManager)
     NavigationSplitView {
 
-      List(selection: $viewState.selection) {
+      VStack {
 
-        FileNavigator(name: model.name,
-                      item: $model.document.texts.root,
-                      parent: .constant(nil),
-                      viewState: viewState)
-        { cursor, $editedText, proxy in
+        List(selection: $viewState.selection) {
 
-          EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
-            .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
-            .contextMenu{ FileContextMenu(cursor: cursor,
-                                          editedText: $editedText,
-                                          proxy: proxy,
-                                          viewContext: viewContext) }
+          FileNavigator(name: model.name,
+                        item: $model.document.texts.root,
+                        parent: .constant(nil),
+                        viewState: viewState)
+          { cursor, $editedText, proxy in
 
-        } folderLabel: { cursor, $editedText, $folder in
-
-          EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
-            .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
-            .contextMenu{ FolderContextMenu(cursor: cursor,
+            EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
+              .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
+              .contextMenu{ FileContextMenu(cursor: cursor,
                                             editedText: $editedText,
-                                            folder: $folder,
+                                            proxy: proxy,
                                             viewContext: viewContext) }
 
+          } folderLabel: { cursor, $editedText, $folder in
+
+            EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
+              .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
+              .contextMenu{ FolderContextMenu(cursor: cursor,
+                                              editedText: $editedText,
+                                              folder: $folder,
+                                              viewContext: viewContext) }
+
+          }
+          .navigatorFilter{ $0.first != Character(".") }
         }
-        .navigatorFilter{ $0.first != Character(".") }
-      }
-      .listStyle(.sidebar)
-      .navigationTitle(model.name)
+        .listStyle(.sidebar)
+        .navigationTitle(model.name)
 #if os(iOS)
-      .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.large)
 #endif
+
+
+        if let dominantFolder = viewState.dominantFolder?.wrappedValue,
+           let name           = model.document.texts.filePath(of: dominantFolder.id).lastComponent?.string
+        {
+
+          VStack(alignment: .leading) {
+            Divider()
+            Text(name)
+              .padding([.leading, .bottom], 4)
+          }
+
+        }
+      }
 
     } detail: {
 
@@ -194,7 +210,7 @@ struct ContentView: View {
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
-  @State private var fileNavigationViewState = FileNavigatorViewState()
+  @State private var fileNavigationViewState = FileNavigatorViewState<Payload>()
 
   var body: some View {
 

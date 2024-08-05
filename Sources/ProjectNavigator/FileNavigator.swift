@@ -6,6 +6,7 @@
 //
 //  A file navigator enables the navigation of a file tree in a navigation view.
 
+import UniformTypeIdentifiers
 import Observation
 import SwiftUI
 import OrderedCollections
@@ -44,7 +45,7 @@ extension View {
 /// This class captures a file navigator's view state.
 ///
 @Observable
-public final class FileNavigatorViewState {
+public final class FileNavigatorViewState<Payload: FileContents> {
 
   /// The `UUID` and name of a label that is being edited.
   ///
@@ -60,6 +61,12 @@ public final class FileNavigatorViewState {
   /// The `UUID` of the selected file, if any.
   ///
   public var selection: FileOrFolder.ID?
+  
+  /// Provided that there is a unique selection, if it is a folder, the folder itself is the dominant folder.
+  /// If a unique file is selected, its parent folder constitutes the dominant folder. Otherwise, we don't have a
+  /// dominant folder.
+  ///
+  public internal(set) var dominantFolder: Binding<ProxyFolder<Payload>?>? = nil
 
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
@@ -147,7 +154,7 @@ public struct FileNavigator<Payload: FileContents,
   @Binding var item:   ProxyFileOrFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  var viewState: FileNavigatorViewState
+  let viewState: FileNavigatorViewState<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -168,7 +175,7 @@ public struct FileNavigator<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  item: Binding<ProxyFileOrFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewState: FileNavigatorViewState,
+                                 viewState: FileNavigatorViewState<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -213,7 +220,7 @@ public struct FileNavigatorFile<Payload: FileContents,
 
   @Binding var parent: ProxyFolder<Payload>?
 
-  var viewState: FileNavigatorViewState
+  var viewState: FileNavigatorViewState<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
@@ -285,7 +292,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  folder: Binding<ProxyFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewState: FileNavigatorViewState,
+                                 viewState: FileNavigatorViewState<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -321,6 +328,11 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
       // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
       NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
+        .onChange(of: viewState.selection) {
+          if viewState.selection == folder.id {
+            viewState.dominantFolder = Binding($folder)
+          }
+        }
 
     }
   }
@@ -343,7 +355,9 @@ struct FileNavigator_Previews: PreviewProvider {
   struct Container: View {
     let fileTree: FileTree<Payload>
 
-    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
+                                                              selection: nil,
+                                                              editedLabel: nil)
 
     var body: some View {
 
@@ -390,7 +404,9 @@ struct FileNavigatorEditLabel_Previews: PreviewProvider {
     @State var fileTree
       = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
-    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
+                                                              selection: nil,
+                                                              editedLabel: nil)
 
     var body: some View {
 
@@ -466,7 +482,9 @@ struct FileNavigatorSingleFile_Previews: PreviewProvider {
   struct Container: View {
     let fileTree: FileTree<Payload>
 
-    @Bindable var viewState = FileNavigatorViewState(expansions: WrappedUUIDSet(), selection: nil, editedLabel: nil)
+    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
+                                                              selection: nil,
+                                                              editedLabel: nil)
     var body: some View {
 
       NavigationSplitView {

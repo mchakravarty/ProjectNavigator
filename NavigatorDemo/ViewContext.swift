@@ -19,14 +19,14 @@ import ProjectNavigator
 ///
 struct ViewContext {
 
-  let viewState: FileNavigatorViewState
+  let viewState: FileNavigatorViewState<Payload>
   let model:     NavigatorDemoModel
 
   /// The undo manager from the SwiftUI environment.
   ///
   let undoManager: UndoManager?
 
-  init(viewState: FileNavigatorViewState, model: NavigatorDemoModel, undoManager: UndoManager?) {
+  init(viewState: FileNavigatorViewState<Payload>, model: NavigatorDemoModel, undoManager: UndoManager?) {
     self.viewState       = viewState
     self.model           = model
     self.undoManager     = undoManager
