@@ -241,7 +241,7 @@ public struct FileNavigatorFile<Payload: FileContents,
   public init<S: StringProtocol>(name: S,
                                  proxy: File<Payload>.Proxy,
                                  parent: Binding<ProxyFolder<Payload>?>,
-                                 viewState: FileNavigatorViewState,
+                                 viewState: FileNavigatorViewState<Payload>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
@@ -271,7 +271,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   @Binding var folder: ProxyFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
-  @Bindable var viewState: FileNavigatorViewState
+  @Bindable var viewState: FileNavigatorViewState<Payload>
 
   let name:        String
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
