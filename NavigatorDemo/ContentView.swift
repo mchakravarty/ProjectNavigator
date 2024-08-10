@@ -120,6 +120,10 @@ struct Navigator: View {
 
   @Environment(\.undoManager) var undoManager: UndoManager?
 
+  // Used by the undo manager logic to be able to distinguish between changes made to the text by the user and changes
+  // made by the undo manager.
+  @State private var changeByUndoManager: Bool = false
+
   var body: some View {
 
     @Bindable var model = model
@@ -191,6 +195,31 @@ struct Navigator: View {
               .padding(EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8))
             TextEditor(text: $text)
               .font(.custom("HelveticaNeue", size: 15))
+              .onChange(of: $text.wrappedValue) { (oldValue, newValue) in
+                guard !changeByUndoManager else {
+                  changeByUndoManager = false
+                  return
+                }
+
+#if os(iOS) || os(visionOS)
+                // On iOS, the `TextEditor` uses its own local undo manager instead of the one provided by the SwiftUI
+                // environment. Hence, the SwiftUI document system is not informed of changes to the text by the
+                // `TextEditor`. As a consequence, (auto)saving does not work.
+                //
+                // The following codes works around this issues by explicitly registering text changes with the undo
+                // manager provided by the SwiftUI document system. This is only a work around and not a proper solution
+                // as it will also undo changes made to the text outside of the `TextEditor`. (This is not a problem
+                // in this little demo app.)
+                undoManager?.registerUndo(withTarget: model) { [weak undoManager] _ in
+                  $text.wrappedValue = oldValue
+                  changeByUndoManager =  true
+                  undoManager?.registerUndo(withTarget: model) { _ in
+                    $text.wrappedValue = newValue
+                    changeByUndoManager =  true
+                  }
+                }
+#endif
+              }
 
           }
 
