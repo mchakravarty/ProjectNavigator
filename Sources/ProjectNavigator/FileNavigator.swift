@@ -260,7 +260,7 @@ public struct FileNavigatorFile<Payload: FileContents,
 
     // NB: Need an explicit link here to ensure that a single toplevel file is selectable, too.
     NavigationLink(value: proxy.id) { fileLabel(cursor, editedTextBinding, proxy) }
-      .onChange(of: viewState.selection) {
+      .onChange(of: viewState.selection, initial: true) {
         if viewState.selection == proxy.id {
           viewState.dominantFolder = cursor.parent
         }
@@ -333,7 +333,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
       // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
       NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
-        .onChange(of: viewState.selection) {
+        .onChange(of: viewState.selection, initial: true) {
           if viewState.selection == folder.id {
             viewState.dominantFolder = Binding($folder)
           }
