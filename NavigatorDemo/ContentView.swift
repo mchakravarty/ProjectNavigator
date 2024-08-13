@@ -235,10 +235,12 @@ struct Navigator: View {
 /// This is the toplevel content view. It expects the app model as the environment object.
 ///
 struct ContentView: View {
+  let configuration: ReferenceFileDocumentConfiguration<NavigatorDemoDocument>?
 
   @SceneStorage("navigatorExpansions") private var expansions: WrappedUUIDSet?
   @SceneStorage("navigatorSelection")  private var selection:  FileOrFolder.ID?
 
+  @State private var navigatorDemoModel      = NavigatorDemoModel(name: "Test", document: NavigatorDemoDocument())
   @State private var fileNavigationViewState = FileNavigatorViewState<Payload>()
 
   var body: some View {
@@ -263,6 +265,17 @@ struct ContentView: View {
 #if os(iOS)
       .toolbar(.hidden, for: .navigationBar)
 #endif
+      .environment(navigatorDemoModel)
+      .onAppear {
+        if let configuration,
+           navigatorDemoModel.fileURL == nil
+        {
+          navigatorDemoModel.name     = configuration.fileURL?.lastPathComponent ?? "Untitled"
+          navigatorDemoModel.fileURL  = configuration.fileURL
+          navigatorDemoModel.document = configuration.document
+        }
+      }
+
   }
 }
 
@@ -276,8 +289,7 @@ struct ContentView_Previews: PreviewProvider {
     let document = NavigatorDemoDocument()
 
     var body: some View {
-      ContentView()
-        .environment(NavigatorDemoModel(name: "Test", document: document))
+      ContentView(configuration: nil)
     }
   }
 
