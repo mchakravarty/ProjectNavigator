@@ -208,6 +208,15 @@ public struct FileNavigator<Payload: FileContents,
                           folderLabel: folderLabel)
 
     }
+    // NB: We have got three `.onChange(of: viewState.selection) { ... }` calls. Here, on `FileNavigatorFile`, and
+    //     on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
+    //     one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
+    //     outcome.
+    .onChange(of: viewState.selection) {
+      if viewState.selection == nil {
+        viewState.dominantFolder = nil
+      }
+    }
   }
 }
 

@@ -47,7 +47,7 @@ struct FileContextMenu: View {
     Button(role: .destructive) {
 
       withAnimation {
-        viewContext.remove(cursor: cursor)
+        viewContext.remove(id: proxy.id, cursor: cursor)
       }
 
     } label: {
@@ -101,7 +101,7 @@ struct FolderContextMenu: View {
       Button(role: .destructive) {
 
         withAnimation {
-          viewContext.remove(cursor: cursor)
+          viewContext.remove(id: folder.id, cursor: cursor)
         }
 
       } label: {
@@ -166,10 +166,9 @@ struct Navigator: View {
 #endif
 
 
-        if let dominantFolder = viewState.dominantFolder?.wrappedValue,
-           let name           = model.document.texts.filePath(of: dominantFolder.id).lastComponent?.string
-        {
+        if let dominantFolder = viewState.dominantFolder?.wrappedValue  {
 
+          let name = model.document.texts.filePath(of: dominantFolder.id).lastComponent?.string ?? model.name
           VStack(alignment: .leading) {
             Divider()
             Text(name)
@@ -181,7 +180,7 @@ struct Navigator: View {
 
     } detail: {
 
-      if let uuid  = viewState.selection,
+      if let uuid = viewState.selection,
          // NB: We need our own unwrapping version here (not the implicitly unwrapping one from Apple); otherwise,
          //     we crash when removing the currently selected file. It would be better to avoid the crash in a
          //     different manner.

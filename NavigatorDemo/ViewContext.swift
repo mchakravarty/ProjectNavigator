@@ -75,13 +75,18 @@ extension ViewContext {
   }
 
   /// Remove the item idenfified by the given cursor.
+  /// 
+  /// - Parameters:
+  ///   - id: The id of the item to be removed.
+  ///   - cursor: The cursor identifying the item to be removed.
   ///
-  /// - Parameter cursor: The cursor identifying the item to be removed.
-  ///
-  func remove(cursor: FileNavigatorCursor<Payload>) {
+  func remove(id: UUID, cursor: FileNavigatorCursor<Payload>) {
 
     registerUndo {
       _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
+    }
+    if viewState.selection == id {
+      viewState.selection = nil
     }
   }
 
