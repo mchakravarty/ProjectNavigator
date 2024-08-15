@@ -128,6 +128,11 @@ public struct FileNavigatorCursor<Payload: FileContents> {
   /// Binding to the item's parent if any. (This is necessary as all changes to an item need to go through its parent.)
   ///
   public let parent: Binding<ProxyFolder<Payload>?>
+
+  public init(name: String, parent: Binding<ProxyFolder<Payload>?>) {
+    self.name   = name
+    self.parent = parent
+  }
 }
 
 
@@ -156,7 +161,7 @@ public struct FileNavigator<Payload: FileContents,
 
   let viewState: FileNavigatorViewState<Payload>
 
-  let name:        String
+  let name:        String?
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
@@ -165,14 +170,16 @@ public struct FileNavigator<Payload: FileContents,
   /// Creates a navigator for the given file item. The navigator needs to be contained in a `NavigationSplitView`.
   ///
   /// - Parameters:
-  ///   - name: The name of the file item.
+  ///   - name: The optional name of the file item.
   ///   - item: The file item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
-  public init<S: StringProtocol>(name: S,
+  /// If the name of the toplevel item is given, it is used to name the root file or folder.
+  ///
+  public init<S: StringProtocol>(name: S?,
                                  item: Binding<ProxyFileOrFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
                                  viewState: FileNavigatorViewState<Payload>,
@@ -181,7 +188,7 @@ public struct FileNavigator<Payload: FileContents,
   {
     self._item       = item
     self._parent     = parent
-    self.name        = String(name)
+    self.name        = name.map{ String($0) }
     self.viewState   = viewState
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
@@ -191,7 +198,7 @@ public struct FileNavigator<Payload: FileContents,
 
     SwitchFileOrFolder(fileOrFolder: $item) { file in
 
-      FileNavigatorFile(name: name,
+      FileNavigatorFile(name: name ?? "Contents",
                         proxy: file,
                         parent: $parent,
                         viewState: viewState,
@@ -287,7 +294,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
   @Bindable var viewState: FileNavigatorViewState<Payload>
 
-  let name:        String
+  let name:        String?
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
@@ -296,14 +303,14 @@ public struct FileNavigatorFolder<Payload: FileContents,
   /// Creates a navigator for the given folder. The navigator needs to be contained in a `NavigationSplitView`.
   ///
   /// - Parameters:
-  ///   - name: The name of the folder item.
+  ///   - name: The optional name of the folder item.
   ///   - folder: The folder item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
-  public init<S: StringProtocol>(name: S,
+  public init<S: StringProtocol>(name: S?,
                                  folder: Binding<ProxyFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
                                  viewState: FileNavigatorViewState<Payload>,
@@ -312,7 +319,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   {
     self._folder     = folder
     self._parent     = parent
-    self.name        = String(name)
+    self.name        = name.map{ String($0) }
     self.viewState   = viewState
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
@@ -320,7 +327,39 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
   public var body: some View {
 
-    DisclosureGroup(isExpanded: $viewState.expansions[folder.id]) {
+    if let name {
+
+      DisclosureGroup(isExpanded: $viewState.expansions[folder.id]) {
+
+        ForEach(folder.children.elements.filter{ navigatorFilter($0.key) }, id: \.value.id) { keyValue in
+
+          // FIXME: This is not nice...
+          let i = folder.children.keys.firstIndex(of: keyValue.key)!
+          FileNavigator(name: keyValue.key,
+                        item: $folder.children.values[i],
+                        parent: Binding($folder),
+                        viewState: viewState,
+                        fileLabel: fileLabel,
+                        folderLabel: folderLabel)
+
+        }
+
+      } label: {
+
+        let cursor            = FileNavigatorCursor(name: name, parent: $parent),
+            editedTextBinding = viewState.editedText(for: folder.id)
+
+        // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
+        NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
+          .onChange(of: viewState.selection, initial: true) {
+            if viewState.selection == folder.id {
+              viewState.dominantFolder = Binding($folder)
+            }
+          }
+
+      }
+
+    } else {
 
       ForEach(folder.children.elements.filter{ navigatorFilter($0.key) }, id: \.value.id) { keyValue in
 
@@ -335,20 +374,8 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
       }
 
-    } label: {
-
-      let cursor            = FileNavigatorCursor(name: name, parent: $parent),
-          editedTextBinding = viewState.editedText(for: folder.id)
-
-      // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
-      NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
-        .onChange(of: viewState.selection, initial: true) {
-          if viewState.selection == folder.id {
-            viewState.dominantFolder = Binding($folder)
-          }
-        }
-
     }
+
   }
 }
 
