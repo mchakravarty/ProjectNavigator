@@ -253,7 +253,9 @@ struct Navigator: View {
         Toggle(isOn: $inSections) {
           Text("With toplevel section")
         }
+#if os(macOS)
         .toggleStyle(.checkbox)
+#endif
         .padding(EdgeInsets(top: 0, leading: 8, bottom: 8, trailing: 8))
 
       }
