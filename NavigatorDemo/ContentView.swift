@@ -144,7 +144,7 @@ struct Navigator: View {
 
             let (sectionName, itemName): (String, String?) = if inSections { (model.name, nil) }
                                                              else { ("Text Bundle", model.name) }
-            Section(sectionName, isExpanded: $viewState.expansions[folder.id]) {
+            Section(isExpanded: $viewState.expansions[folder.id]) {
 
               FileNavigator(name: itemName,
                             item: $model.document.texts.root,
@@ -175,11 +175,13 @@ struct Navigator: View {
 #if os(iOS)
               .navigationBarTitleDisplayMode(.large)
 #endif
+            } header: {
+              Text(sectionName)
+                .contextMenu{ FolderContextMenu(cursor: FileNavigatorCursor(name: model.name, parent: .constant(nil)),
+                                                editedText: .constant(nil),
+                                                folder: $folder,
+                                                viewContext: viewContext) }
             }
-            .contextMenu{ FolderContextMenu(cursor: FileNavigatorCursor(name: model.name, parent: .constant(nil)),
-                                            editedText: .constant(nil),
-                                            folder: $folder,
-                                            viewContext: viewContext) }
           }
 
         }
