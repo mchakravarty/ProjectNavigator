@@ -162,6 +162,7 @@ public struct FileNavigator<Payload: FileContents,
   let viewState: FileNavigatorViewState<Payload>
 
   let name:        String?
+  let isRoot:      Bool
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
@@ -186,9 +187,30 @@ public struct FileNavigator<Payload: FileContents,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
                                  @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
   {
+    self.init(name: name,
+              isRoot: true,
+              item: item,
+              parent: parent,
+              viewState: viewState,
+              fileLabel: fileLabel,
+              folderLabel: folderLabel)
+  }
+
+  // We use the internal initialiser for recursive calls, to be able to set `isRoot` to `false`. This is important as
+  // we want the action in `.onChange(of: viewState.selection == nil, initial: true) { ... }` to only be executed for
+  // the root node. (Otherwise, we get multiple updates to the same variable.)
+  internal init<S: StringProtocol>(name: S?,
+                                   isRoot: Bool,
+                                   item: Binding<ProxyFileOrFolder<Payload>>,
+                                   parent: Binding<ProxyFolder<Payload>?>,
+                                   viewState: FileNavigatorViewState<Payload>,
+                                   @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
+                                   @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
+  {
     self._item       = item
     self._parent     = parent
     self.name        = name.map{ String($0) }
+    self.isRoot      = isRoot
     self.viewState   = viewState
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
@@ -219,9 +241,19 @@ public struct FileNavigator<Payload: FileContents,
     //     on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
     //     one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
     //     outcome.
-    .onChange(of: viewState.selection) {
-      if viewState.selection == nil {
-        viewState.dominantFolder = nil
+    .onChange(of: viewState.selection == nil, initial: true) {
+      if isRoot && viewState.selection == nil {  // NB: The above looks for a *change*, not the absolute value.
+
+        // Moreover, we need to be careful to trigger at most one assignment here; although this closure will be
+        // called once for each visible folder.
+        if case .folder(let root) = item
+        {    // we are at the nameless root folder
+
+          viewState.dominantFolder = Binding { root } set: { newValue in
+                                       if let folder = newValue { item = FileOrFolder(folder: folder) }
+          }
+
+        }
       }
     }
   }
@@ -336,6 +368,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
           // FIXME: This is not nice...
           let i = folder.children.keys.firstIndex(of: keyValue.key)!
           FileNavigator(name: keyValue.key,
+                        isRoot: false,
                         item: $folder.children.values[i],
                         parent: Binding($folder),
                         viewState: viewState,
@@ -366,6 +399,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
         // FIXME: This is not nice...
         let i = folder.children.keys.firstIndex(of: keyValue.key)!
         FileNavigator(name: keyValue.key,
+                      isRoot: false,
                       item: $folder.children.values[i],
                       parent: Binding($folder),
                       viewState: viewState,
