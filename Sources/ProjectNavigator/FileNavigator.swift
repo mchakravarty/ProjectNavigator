@@ -237,10 +237,15 @@ public struct FileNavigator<Payload: FileContents,
                           folderLabel: folderLabel)
 
     }
-    // NB: We have got three `.onChange(of: viewState.selection) { ... }` calls. Here, on `FileNavigatorFile`, and
-    //     on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
-    //     one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
-    //     outcome.
+    // NB: 
+    // * We have got three `.onChange(of: viewState.selection) { ... }` calls. Here, on `FileNavigatorFile`, and
+    //   on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
+    //   one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
+    //   outcome.
+    // * It seems somewhat unintuitive, but if we have got an empty root folder, this `.onChange(of:initial::)` will
+    //   *not* be triggered as it is not attached to any view (the above `FileNavigatorFolder(...)` will essentially
+    //   be an empty `ForEach`). Hence, the dominant folder will remain `nil` (unless it has been set earlier).
+    //
     .onChange(of: viewState.selection == nil, initial: true) {
       // Moreover, we need to be careful to trigger at most one assignment here; although this closure will be
       // called once for each visible folder. Hence, the test for `isRoot`.
