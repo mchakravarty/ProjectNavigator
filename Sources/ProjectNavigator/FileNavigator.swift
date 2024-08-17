@@ -242,10 +242,10 @@ public struct FileNavigator<Payload: FileContents,
     //     one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
     //     outcome.
     .onChange(of: viewState.selection == nil, initial: true) {
+      // Moreover, we need to be careful to trigger at most one assignment here; although this closure will be
+      // called once for each visible folder. Hence, the test for `isRoot`.
       if isRoot && viewState.selection == nil {  // NB: The above looks for a *change*, not the absolute value.
 
-        // Moreover, we need to be careful to trigger at most one assignment here; although this closure will be
-        // called once for each visible folder.
         if case .folder(let root) = item
         {    // we are at the nameless root folder
 
