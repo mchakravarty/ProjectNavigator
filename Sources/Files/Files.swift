@@ -307,9 +307,17 @@ extension FileOrFolder {
 
       self = .file(try File<Contents>(fileWrapper: fileWrapper, persistentIDMap: fileMap))
 
-    } else if let fileWrappers = fileWrapper.fileWrappers {
+    } else if fileWrapper.isDirectory,
+              let fileWrappers = fileWrapper.fileWrappers
+    {
 
       self = .folder(try Folder<FileType, Contents>(fileWrappers: fileWrappers, persistentIDMap: fileMap))
+
+    } else if fileWrapper.isSymbolicLink {
+
+      let name = fileWrapper.preferredFilename ?? fileWrapper.filename ?? "<unknown name>"
+      logger.error("File wrapper for '\(name)' is a symbolic link, which is currently notÒ supported")
+      throw CocoaError(.fileReadCorruptFile)
 
     } else {
 
