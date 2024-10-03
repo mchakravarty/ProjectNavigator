@@ -23,19 +23,22 @@ extension Folder {
   ///       100 attempts, the item will not be inserted.
   ///   - index: Optional index at which to insert the new item into the ordered set of children. If no index is given,
   ///       the new child will be added at the first position where it fits alphabetically.
+  /// - Returns:If successful, the name under which the item was added.
   ///
   /// This function only works on folders in proxy trees. (It would be easy to provide a corresponding version on
   /// folders containing full files.)
   ///
+  @discardableResult
   public mutating func add(item: FullFileOrFolder<Contents>,
                            withPreferredName preferredName: String,
                            at index: Int? = nil)
+  -> String?
   where FileType == File<Contents>.Proxy
   {
     // Folders in proxy tree must have a file tree set.
     guard let fileTree else {
       logger.error("Folder.add(item:withPreferredName:at:) in a proxy tree without having a file tree set")
-      return
+      return nil
     }
 
     let ext  = (preferredName as NSString).pathExtension,
@@ -67,6 +70,7 @@ extension Folder {
                              // ...in case the caller passes an out of range index
 
     }
+    return finalName
   }
 
   /// Remove the item with the given name from the a folder.

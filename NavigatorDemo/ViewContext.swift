@@ -69,16 +69,22 @@ extension ViewContext {
   ///   - item: The item to add.
   ///   - to: The folder to which the item is to be added.
   ///   - preferredName: The preferred name of the given item.
+  /// - Returns:If successful, the actual name under which the item was added.
   ///
   ///   If the preferred name is already taken, an alternative name, derived from the preferred name, will be used.
   ///
   ///   If needed the dominant folder is being refreshed accordingly.
   ///
-  func add(item: FullFileOrFolder<Payload>, @Binding to folder: ProxyFolder<Payload>, withPreferredName preferredName: String) {
-
-    registerUndo {
-      folder.add(item: item, withPreferredName: preferredName)
+  @discardableResult
+  func add(item: FullFileOrFolder<Payload>,
+           @Binding to folder: ProxyFolder<Payload>,
+           withPreferredName preferredName: String)
+  -> String?
+  {
+    return registerUndo {
+      let newName = folder.add(item: item, withPreferredName: preferredName)
       viewState.refreshDominantFolder(updatedFolder: Binding($folder))
+      return newName
     }
   }
 
@@ -106,13 +112,13 @@ extension ViewContext {
   ///
   /// During undo, register a redo in a symmetric manner.
   ///
-  private func registerUndo(action: () -> Void) {
+  private func registerUndo<Result>(action: () -> Result) -> Result {
 
     // Preserve old value for undo
     let oldTextsCopy = FileTree<Payload>(fileTree: model.document.texts)
 
     // Perform action
-    action()
+    let result = action()
 
     // Register undoing the change
     undoManager?.registerUndo(withTarget: model) { ourModel in
@@ -120,5 +126,6 @@ extension ViewContext {
         ourModel.document.texts.set(to: oldTextsCopy)
       }
     }
+    return result
   }
 }

@@ -70,8 +70,14 @@ struct FolderContextMenu: View {
     Button {
       withAnimation {
         let newFile = FileOrFolder<File<Payload>, Payload>(file: File(contents: Payload(text: "")))
-        viewContext.add(item: newFile, $to: $folder, withPreferredName: "Text.txt")
-        viewContext.viewState.selection = newFile.id
+        if let newName = viewContext.add(item: newFile, $to: $folder, withPreferredName: "Text.txt") {
+
+          viewContext.viewState.selection = newFile.id
+          Task { @MainActor in
+            viewContext.viewState.editedLabel = FileNavigatorViewState.EditedLabel(id: newFile.id, text: newName)
+          }
+
+        }
       }
     } label: {
       Label("New file", systemImage: "doc.badge.plus")
@@ -80,8 +86,14 @@ struct FolderContextMenu: View {
     Button {
       withAnimation {
         let newFolder = FileOrFolder<File<Payload>, Payload>(folder: Folder(children: [:]))
-        viewContext.add(item: newFolder, $to: $folder, withPreferredName: "Folder")
-        viewContext.viewState.selection = newFolder.id
+        if let newName = viewContext.add(item: newFolder, $to: $folder, withPreferredName: "Folder") {
+
+          viewContext.viewState.selection = newFolder.id
+          Task { @MainActor in
+            viewContext.viewState.editedLabel = FileNavigatorViewState.EditedLabel(id: newFolder.id, text: newName)
+          }
+
+        }
       }
     } label: {
       Label("New folder", systemImage: "folder.badge.plus")
@@ -267,10 +279,10 @@ struct Navigator: View {
                   // environment. Hence, the SwiftUI document system is not informed of changes to the text by the
                   // `TextEditor`. As a consequence, (auto)saving does not work.
                   //
-                  // The following codes works around this issues by explicitly registering text changes with the undo
-                  // manager provided by the SwiftUI document system. This is only a work around and not a proper solution
-                  // as it will also undo changes made to the text outside of the `TextEditor`. (This is not a problem
-                  // in this little demo app.)
+                  // The following code works around this issues by explicitly registering text changes with the undo
+                  // manager provided by the SwiftUI document system. This is only a work around and not a proper
+                  // solution as it will also undo changes made to the text outside of the `TextEditor`. (This is not a
+                  // problem in this little demo app, but generally not desirable.)
                   undoManager?.registerUndo(withTarget: model) { [weak undoManager] _ in
                     $text.wrappedValue = oldValue
                     changeByUndoManager =  true
