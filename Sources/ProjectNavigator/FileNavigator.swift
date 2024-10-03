@@ -52,6 +52,26 @@ public final class FileNavigatorViewState<Payload: FileContents> {
   public struct EditedLabel {
     public var id:   UUID
     public var text: String
+
+    public init(id: UUID, text: String) {
+      self.id   = id
+      self.text = text
+    }
+  }
+
+  /// Contextual information about a unique selected item.
+  ///
+  public struct SelectionContext {
+
+    /// The name of the selected item, except if it is a naneless root folder.
+    ///
+    public var name: String?
+
+    /// Provided that there is a unique selection, if it is a folder, the folder itself is the dominant folder.
+    /// If a unique file is selected, its parent folder constitutes the dominant folder. Otherwise, we don't have a
+    /// dominant folder.
+    ///
+    public var dominantFolder: Binding<ProxyFolder<Payload>?>
   }
 
   /// Set of `UUID`s of all expanded folders.
@@ -62,11 +82,14 @@ public final class FileNavigatorViewState<Payload: FileContents> {
   ///
   public var selection: FileOrFolder.ID?
   
-  /// Provided that there is a unique selection, if it is a folder, the folder itself is the dominant folder.
-  /// If a unique file is selected, its parent folder constitutes the dominant folder. Otherwise, we don't have a
-  /// dominant folder.
+  /// Provided that there is a unique selection, the selection context provides some information about the selected
+  /// item.
   ///
-  public internal(set) var dominantFolder: Binding<ProxyFolder<Payload>?>? = nil
+  /// NB: This is the correct context at the time the selection was set. If the context changes, while the selection
+  ///     stays the same, the context need to be explicitly updated with `refreshDominantFolder(updatedFolder:)` and
+  ///     `refreshSelectionName(of:updatedName:)`.
+  ///
+  public internal(set) var selectionContext: SelectionContext? = nil
 
   /// The `UUID` and current string of the edited file or folder label, if any.
   ///
@@ -94,7 +117,8 @@ public final class FileNavigatorViewState<Payload: FileContents> {
   /// - Returns: A binding to the projected edited label text.
   ///
   /// If a label associated with the item identified by `id` is edited, the resulting binding contains the current
-  /// value of the edited text.
+  /// value of the edited text. Setting edited text through this binding, while there is no edited label, starts
+  /// editing for `id`.
   ///
   func editedText(for id: UUID) -> Binding<String?> {
     let thisLabelIsBeingEdited = editedLabel?.id == id,
@@ -104,8 +128,12 @@ public final class FileNavigatorViewState<Payload: FileContents> {
 
       if let newText = optionalNewText {
 
-        // This label is being edited and the edited text is being updated
-        self?.editedLabel = FileNavigatorViewState.EditedLabel(id: id, text: newText)
+        // If this label is being edited or no label is being edited YET, we update the edited label, which includes
+        // the id and text. Hence, this code path can be used to turn editing for this `id` on (if there is no other
+        // edited label yet).
+        if thisLabelIsBeingEdited || self?.editedLabel == nil {
+          self?.editedLabel = FileNavigatorViewState.EditedLabel(id: id, text: newText)
+        }
 
       } else {
 
@@ -113,6 +141,31 @@ public final class FileNavigatorViewState<Payload: FileContents> {
         if thisLabelIsBeingEdited { self?.editedLabel = nil }
 
       }
+    }
+  }
+  
+  /// Refresh the dominant folder if its id matches the provided updated folder.
+  ///
+  /// - Parameter updatedFolder: The new version of the folder that was updated.
+  ///
+  public func refreshDominantFolder(updatedFolder: Binding<ProxyFolder<Payload>?>) {
+    if let dominantId = selectionContext?.dominantFolder.wrappedValue?.id,
+       dominantId == updatedFolder.wrappedValue?.id
+    {
+      selectionContext?.dominantFolder = updatedFolder
+    }
+
+  }
+  
+  /// Refresh the selected name if the given id matches the current selection.
+  ///
+  /// - Parameters:
+  ///   - id: The id whose name ought to be updated.
+  ///   - updatedName: The new name.
+  ///
+  public func refreshSelectionName(of id: UUID, updatedName: String?) {
+    if selection == id {
+      selectionContext?.name = updatedName
     }
   }
 }
@@ -253,11 +306,13 @@ public struct FileNavigator<Payload: FileContents,
 
         if case .folder(let root) = item
         {    // we are at the nameless root folder
-
-          viewState.dominantFolder = Binding { root } set: { newValue in
-                                       if let folder = newValue { item = FileOrFolder(folder: folder) }
-          }
-
+          viewState.selectionContext = .init(name: name,
+                                             dominantFolder: Binding( get: { root },
+                                                                      set: { newValue in
+                                                                              if let folder = newValue {
+                                                                                item = FileOrFolder(folder: folder)
+                                                                              }
+                                                                            }))
         }
       }
     }
@@ -315,7 +370,7 @@ public struct FileNavigatorFile<Payload: FileContents,
     NavigationLink(value: proxy.id) { fileLabel(cursor, editedTextBinding, proxy) }
       .onChange(of: viewState.selection, initial: true) {
         if viewState.selection == proxy.id {
-          viewState.dominantFolder = cursor.parent
+          viewState.selectionContext = .init(name: name, dominantFolder: cursor.parent)
         }
       }
   }
@@ -391,7 +446,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
         NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
           .onChange(of: viewState.selection, initial: true) {
             if viewState.selection == folder.id {
-              viewState.dominantFolder = Binding($folder)
+              viewState.selectionContext = .init(name: name, dominantFolder: Binding($folder))
             }
           }
 

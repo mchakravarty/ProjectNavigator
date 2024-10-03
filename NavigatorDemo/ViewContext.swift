@@ -42,17 +42,22 @@ extension ViewContext {
   /// Rename the item identified by the cursor.
   ///
   /// - Parameters:
+  ///   - id: The id of the item whose names gets changed.
   ///   - cursor: The file navigator cursor identifying the item whose name is to be changed.
   ///   - to: A binding to the edited name.
   ///
   ///   The binding to the edited name is nil'ed out to indicate the completion of editing.
   ///
-  func rename(cursor: FileNavigatorCursor<Payload>, @Binding to editedText: String?) {
+  ///   If needed the dominant folder is being refreshed accordingly.
+  ///
+  func rename(id: UUID, cursor: FileNavigatorCursor<Payload>, @Binding to editedText: String?) {
     guard let newName = editedText else { return }
 
     registerUndo {
 
       _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
+      viewState.refreshDominantFolder(updatedFolder: cursor.parent)
+      viewState.refreshSelectionName(of: id, updatedName: newName)
       editedText = nil
 
     }
@@ -67,10 +72,13 @@ extension ViewContext {
   ///
   ///   If the preferred name is already taken, an alternative name, derived from the preferred name, will be used.
   ///
+  ///   If needed the dominant folder is being refreshed accordingly.
+  ///
   func add(item: FullFileOrFolder<Payload>, @Binding to folder: ProxyFolder<Payload>, withPreferredName preferredName: String) {
 
     registerUndo {
       folder.add(item: item, withPreferredName: preferredName)
+      viewState.refreshDominantFolder(updatedFolder: Binding($folder))
     }
   }
 
@@ -80,11 +88,14 @@ extension ViewContext {
   ///   - id: The id of the item to be removed.
   ///   - cursor: The cursor identifying the item to be removed.
   ///
+  ///   If needed the dominant folder is being refreshed accordingly.
+  ///
   func remove(id: UUID, cursor: FileNavigatorCursor<Payload>) {
 
     registerUndo {
       _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
     }
+    viewState.refreshDominantFolder(updatedFolder: cursor.parent)
     if viewState.selection == id {
       viewState.selection = nil
     }

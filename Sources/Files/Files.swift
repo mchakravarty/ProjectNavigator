@@ -436,6 +436,15 @@ public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiab
       return result && (folder.children[element.key]?.sameContents(fileOrFolder: element.value) == true)
     }
   }
+  
+  /// Look up the child with the given id.
+  ///
+  /// - Parameter id: The id of the requested child.
+  /// - Returns: The name (`key`) and actual file or folder (`value`) of the child.
+  ///
+  public func child(with id: UUID) -> (key: String, value: FileOrFolder<FileType, Contents>)? {
+    return children.first{ $0.value.id == id }
+  }
 
 
   // MARK: Serialisation

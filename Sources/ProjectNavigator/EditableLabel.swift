@@ -16,7 +16,7 @@ public struct EditableLabel: View {
 
   @Binding var editedText: String?
 
-  @FocusState var isFocused: Bool
+  @FocusState private var isFocused: Bool
 
   /// A label whose text can be edited.
   ///
@@ -37,29 +37,34 @@ public struct EditableLabel: View {
 
     Label {
 
-      TextField(text: .constant(text), label: { EmptyView() })
-        .hidden()
-        .overlay(alignment: .leading) {
+      if let $unwrappedEditedText = Binding(unwrap: $editedText) {
 
-          if let $unwrappedEditedText = Binding(unwrap: $editedText) {
-
-            TextField(text: $unwrappedEditedText, label: { EmptyView() })
-              .focused($isFocused)
-              .onAppear{
-                isFocused = true
-              }
-              .disableAutocorrection(true)
+        TextField(text: $unwrappedEditedText, label: { EmptyView() })
+          .textFieldStyle(.plain)
+          .foregroundStyle(.blue)
+          .focused($isFocused)
+          .onAppear {
+            // FIXME: For some reason, we need to delay this assignment; otherwise, the label does not get the
+            // FIXME: focus. This is weird, because a simple test app using basically the same set up, does not
+            // FIXME: need the same sort of delay.
+            Task { @MainActor in
+              isFocused = true
+            }
+          }
+          .disableAutocorrection(true)
 #if os(iOS)
-              .textInputAutocapitalization(.never)
+          .textInputAutocapitalization(.never)
 #endif
 #if os(macOS)
-              .onExitCommand {
-                editedText = nil
-              }
+          .onExitCommand {
+            editedText = nil
+          }
 #endif
+          .onChange(of: isFocused) {
+            if !isFocused { editedText = nil }
+          }
 
-          } else { Text(text) }
-        }
+      } else { Text(text).foregroundStyle(.red) }
 
     } icon: { image }
   }
@@ -112,7 +117,7 @@ struct EditableLabel_Previews: PreviewProvider {
           }
           .onSubmit {
             if editedText == "" { return }
-            if let editedText = editedText { text = editedText }
+            if let editedText { text = editedText }
             editedText = nil
           }
 

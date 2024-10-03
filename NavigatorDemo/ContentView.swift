@@ -13,7 +13,7 @@ import ProjectNavigator
 // MARK: -
 // MARK: UUID serialisation
 
-extension UUID: RawRepresentable {
+extension UUID: @retroactive RawRepresentable {
 
   public var rawValue: String { uuidString }
 
@@ -69,9 +69,9 @@ struct FolderContextMenu: View {
 
     Button {
       withAnimation {
-        viewContext.add(item: FileOrFolder(file: File(contents: Payload(text: ""))),
-                        $to: $folder,
-                        withPreferredName: "Text.txt")
+        let newFile = FileOrFolder<File<Payload>, Payload>(file: File(contents: Payload(text: "")))
+        viewContext.add(item: newFile, $to: $folder, withPreferredName: "Text.txt")
+        viewContext.viewState.selection = newFile.id
       }
     } label: {
       Label("New file", systemImage: "doc.badge.plus")
@@ -79,7 +79,9 @@ struct FolderContextMenu: View {
 
     Button {
       withAnimation {
-        viewContext.add(item: FileOrFolder(folder: Folder(children: [:])), $to: $folder, withPreferredName: "Folder")
+        let newFolder = FileOrFolder<File<Payload>, Payload>(folder: Folder(children: [:]))
+        viewContext.add(item: newFolder, $to: $folder, withPreferredName: "Folder")
+        viewContext.viewState.selection = newFolder.id
       }
     } label: {
       Label("New folder", systemImage: "folder.badge.plus")
@@ -110,6 +112,17 @@ struct FolderContextMenu: View {
 
     }
 
+  }
+}
+
+extension View {
+
+  fileprivate func onTapGestureIf(_ condition: Bool, perform action: @escaping () -> Void) -> some View {
+    if condition {
+      AnyView(self.onTapGesture(perform: action))
+    } else {
+      AnyView(self)
+    }
   }
 }
 
@@ -152,21 +165,27 @@ struct Navigator: View {
                             viewState: viewState)
               { cursor, $editedText, proxy in
 
-                EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
-                  .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
-                  .contextMenu{ FileContextMenu(cursor: cursor,
-                                                editedText: $editedText,
-                                                proxy: proxy,
-                                                viewContext: viewContext) }
+                  EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
+                  .onSubmit{ viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText) }
+                    .contextMenu{ FileContextMenu(cursor: cursor,
+                                                  editedText: $editedText,
+                                                  proxy: proxy,
+                                                  viewContext: viewContext) }
+                    .onTapGestureIf(viewState.selection == proxy.id) {
+                      editedText = cursor.name
+                    }
 
               } folderLabel: { cursor, $editedText, $folder in
 
                 EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
-                  .onSubmit{ viewContext.rename(cursor: cursor, $to: $editedText) }
+                  .onSubmit{ viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText) }
                   .contextMenu{ FolderContextMenu(cursor: cursor,
                                                   editedText: $editedText,
                                                   folder: $folder,
                                                   viewContext: viewContext) }
+                  .onTapGestureIf(viewState.selection == folder.id) {
+                    editedText = cursor.name
+                  }
 
               }
               .listStyle(.sidebar)
@@ -183,10 +202,20 @@ struct Navigator: View {
                                                 viewContext: viewContext) }
             }
           }
+          .onKeyPress(.return) {
+
+            // If no label editing is in progress, but we have got a selection, start editing the selected label.
+            guard viewState.editedLabel == nil,
+                  let selection     = viewState.selection,
+                  let selectionName = viewState.selectionContext?.name
+            else { return .ignored }
+            viewState.editedLabel = FileNavigatorViewState.EditedLabel(id: selection, text: selectionName)
+            return .handled
+          }
 
         }
 
-        if let dominantFolder = viewState.dominantFolder?.wrappedValue  {
+        if let dominantFolder = viewState.selectionContext?.dominantFolder.wrappedValue  {
 
           let name = model.document.texts.filePath(of: dominantFolder.id).lastComponent?.string ?? model.name
           VStack(alignment: .leading) {
