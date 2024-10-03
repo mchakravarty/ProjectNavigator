@@ -243,8 +243,17 @@ struct Navigator: View {
 
             VStack(alignment: .leading) {
 
+#if os(iOS) || os(visionOS)
+              Divider()
+#endif
+
               Text(model.name + "/" + model.document.texts.filePath(of: uuid).string)
                 .padding(EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8))
+
+#if os(iOS) || os(visionOS)
+              Divider()
+#endif
+
               TextEditor(text: $text)
                 .font(.custom("HelveticaNeue", size: 15))
                 .onChange(of: $text.wrappedValue) { (oldValue, newValue) in
@@ -281,6 +290,10 @@ struct Navigator: View {
 
         Spacer()
 
+#if os(iOS) || os(visionOS)
+        Divider()
+#endif
+
         Toggle(isOn: $inSections) {
           Text("With toplevel section")
         }
@@ -313,6 +326,8 @@ struct ContentView: View {
       .onAppear {
         if let savedExpansions = expansions {
           fileNavigationViewState.expansions = savedExpansions
+        } else if let configuration {
+          fileNavigationViewState.expansions[configuration.document.texts.root.id] = true
         }
       }
       .onChange(of: fileNavigationViewState.expansions) {
