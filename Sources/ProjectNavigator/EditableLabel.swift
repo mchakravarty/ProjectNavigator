@@ -41,7 +41,6 @@ public struct EditableLabel: View {
 
         TextField(text: $unwrappedEditedText, label: { EmptyView() })
           .textFieldStyle(.plain)
-          .foregroundStyle(.blue)
           .focused($isFocused)
           .onAppear {
             // FIXME: For some reason, we need to delay this assignment; otherwise, the label does not get the
@@ -64,7 +63,7 @@ public struct EditableLabel: View {
             if !isFocused { editedText = nil }
           }
 
-      } else { Text(text).foregroundStyle(.red) }
+      } else { Text(text) }
 
     } icon: { image }
   }
