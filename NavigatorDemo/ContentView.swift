@@ -177,9 +177,9 @@ struct Navigator: View {
                             viewState: viewState)
               { cursor, $editedText, proxy in
 
-                  EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
+                EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
                   .onSubmit{ viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText) }
-                    .contextMenu{ FileContextMenu(cursor: cursor,
+                  .contextMenu{ FileContextMenu(cursor: cursor,
                                                   editedText: $editedText,
                                                   proxy: proxy,
                                                   viewContext: viewContext) }
