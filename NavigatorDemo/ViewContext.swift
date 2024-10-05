@@ -55,9 +55,11 @@ extension ViewContext {
 
     registerUndo {
 
-      _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
+      let success = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName) ?? false
       viewState.refreshDominantFolder(updatedFolder: cursor.parent)
-      viewState.refreshSelectionName(of: id, updatedName: newName)
+      if success {
+        viewState.refreshSelectionName(of: id, updatedName: newName)
+      }
       editedText = nil
 
     }
