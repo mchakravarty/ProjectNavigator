@@ -456,10 +456,21 @@ public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiab
     // It's curcial that we set the dictionary keys as preferred file names as we keep the original versions of file
     // wrappers of unmodified as is (for efficiency) and they may contain an outdated file name if the file was renamed
     // in the meantime.
+    //
+    // However, we need to be careful if the file wrapper whose preferred file name gets updated is involved in an
+    // enumeration, we crash here. Hence, we clone non-directory file wrappers before setting their name to a new value.
+    // (Directory file wrappers are newly created here anyway, so they don't need to be cloned.)
     let childrenAsFileWrappers = try children.map{ (key, value) in
-      let fileWrapper = try value.fileWrapper()
-      fileWrapper.preferredFilename = key
-      return fileWrapper
+      let fileWrapper = try value.fileWrapper(),
+          maybeClonedFileWrapper = if fileWrapper.preferredFilename != key {
+                                     if fileWrapper.isRegularFile {
+                                       FileWrapper(regularFileWithContents: fileWrapper.regularFileContents!)
+                                     } else if fileWrapper.isSymbolicLink {
+                                       FileWrapper(symbolicLinkWithDestinationURL: fileWrapper.symbolicLinkDestinationURL!)
+                                     } else { fileWrapper }
+                                   } else { fileWrapper }
+      maybeClonedFileWrapper.preferredFilename = key
+      return maybeClonedFileWrapper
     }
     return FileWrapper(directoryWithFileWrappers:
                         Dictionary(uniqueKeysWithValues: zip(children.keys, childrenAsFileWrappers)))
