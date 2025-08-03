@@ -22,6 +22,21 @@ public struct EditableLabel: View {
   ///
   /// - Parameters:
   ///   - text: The label text.
+  ///   - image: Image to use for the label.
+  ///   - editedText: If non-nil, this text is being edited, while the label text is not shown.
+  ///
+  ///  Editing is aborted and the text before editing restored on exit.
+  ///
+  public init(_ text: String, image: Image, editedText: Binding<String?>) {
+    self.text        = text
+    self.image       = image
+    self._editedText = editedText
+  }
+
+  /// A label whose text can be edited.
+  ///
+  /// - Parameters:
+  ///   - text: The label text.
   ///   - systemImage: Name of a system image.
   ///   - editedText: If non-nil, this text is being edited, while the label text is not shown.
   ///
