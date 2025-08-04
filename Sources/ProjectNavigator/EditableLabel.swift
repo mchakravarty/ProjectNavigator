@@ -80,7 +80,11 @@ public struct EditableLabel: View {
 
       } else { Text(text) }
 
-    } icon: { image }
+    } icon: {
+      image
+        .resizable()
+        .scaledToFit()
+    }
   }
 }
 
