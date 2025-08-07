@@ -178,6 +178,7 @@ struct Navigator: View {
               { cursor, $editedText, proxy in
 
                 EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
+                  .font(.callout)
                   .onSubmit{ viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText) }
                   .contextMenu{ FileContextMenu(cursor: cursor,
                                                   editedText: $editedText,
@@ -190,6 +191,7 @@ struct Navigator: View {
               } folderLabel: { cursor, $editedText, $folder in
 
                 EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
+                  .font(.callout)
                   .onSubmit{ viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText) }
                   .contextMenu{ FolderContextMenu(cursor: cursor,
                                                   editedText: $editedText,

@@ -12,7 +12,7 @@ import SwiftUI
 ///
 public struct EditableLabel: View {
   let text:  String
-  let image: Image
+  let image: any View
 
   @Binding var editedText: String?
 
@@ -22,14 +22,14 @@ public struct EditableLabel: View {
   ///
   /// - Parameters:
   ///   - text: The label text.
-  ///   - image: Image to use for the label.
+  ///   - image: Image to use for the label. It will be scaled to fit.
   ///   - editedText: If non-nil, this text is being edited, while the label text is not shown.
   ///
   ///  Editing is aborted and the text before editing restored on exit.
   ///
   public init(_ text: String, image: Image, editedText: Binding<String?>) {
     self.text        = text
-    self.image       = image
+    self.image       = image.resizable().scaledToFit()
     self._editedText = editedText
   }
 
@@ -81,9 +81,7 @@ public struct EditableLabel: View {
       } else { Text(text) }
 
     } icon: {
-      image
-        .resizable()
-        .scaledToFit()
+      AnyView(image)
     }
   }
 }
