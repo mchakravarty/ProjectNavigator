@@ -469,7 +469,9 @@ public struct Folder<FileType: FileProtocol, Contents: FileContents>: Identifiab
                                        FileWrapper(symbolicLinkWithDestinationURL: fileWrapper.symbolicLinkDestinationURL!)
                                      } else { fileWrapper }
                                    } else { fileWrapper }
-      maybeClonedFileWrapper.preferredFilename = key
+      if maybeClonedFileWrapper.preferredFilename != key {
+        maybeClonedFileWrapper.preferredFilename = key
+      }
       return maybeClonedFileWrapper
     }
     return FileWrapper(directoryWithFileWrappers:
