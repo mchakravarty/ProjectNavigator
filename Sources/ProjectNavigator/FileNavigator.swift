@@ -71,6 +71,8 @@ public final class FileNavigatorViewState<Payload: FileContents> {
     /// If a unique file is selected, its parent folder constitutes the dominant folder. Otherwise, we don't have a
     /// dominant folder.
     ///
+    /// The dominant folder must use stable path bindings, see `Folder.pathBinding`.
+    ///
     public var dominantFolder: Binding<ProxyFolder<Payload>?>
   }
 
@@ -86,8 +88,7 @@ public final class FileNavigatorViewState<Payload: FileContents> {
   /// item.
   ///
   /// NB: This is the correct context at the time the selection was set. If the context changes, while the selection
-  ///     stays the same, the context need to be explicitly updated with `refreshDominantFolder(updatedFolder:)` and
-  ///     `refreshSelectionName(of:updatedName:)`.
+  ///     stays the same, the contexts need to be explicitly updated with `refreshSelectionName(of:updatedName:)`.
   ///
   public internal(set) var selectionContext: SelectionContext? = nil
 
@@ -142,19 +143,6 @@ public final class FileNavigatorViewState<Payload: FileContents> {
 
       }
     }
-  }
-  
-  /// Refresh the dominant folder if its id matches the provided updated folder.
-  ///
-  /// - Parameter updatedFolder: The new version of the folder that was updated.
-  ///
-  public func refreshDominantFolder(updatedFolder: Binding<ProxyFolder<Payload>?>) {
-    if let dominantId = selectionContext?.dominantFolder.wrappedValue?.id,
-       dominantId == updatedFolder.wrappedValue?.id
-    {
-      selectionContext?.dominantFolder = updatedFolder
-    }
-
   }
   
   /// Refresh the selected name if the given id matches the current selection.
@@ -291,8 +279,8 @@ public struct FileNavigator<Payload: FileContents,
 
     }
     // NB: 
-    // * We have got three `.onChange(of: viewState.selection) { ... }` calls. Here, on `FileNavigatorFile`, and
-    //   on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
+    // * We have got three `.onChange(of: viewState.selection) { ... }` calls: (1) here, (2) on `FileNavigatorFile`, and
+    //   (3) on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
     //   one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
     //   outcome.
     // * It seems somewhat unintuitive, but if we have got an empty root folder, this `.onChange(of:initial::)` will
@@ -307,12 +295,7 @@ public struct FileNavigator<Payload: FileContents,
         if case .folder(let root) = item
         {    // we are at the nameless root folder
           viewState.selectionContext = .init(name: name,
-                                             dominantFolder: Binding( get: { root },
-                                                                      set: { newValue in
-                                                                              if let folder = newValue {
-                                                                                item = FileOrFolder(folder: folder)
-                                                                              }
-                                                                            }))
+                                             dominantFolder: root.pathBinding)
         }
       }
     }
@@ -370,7 +353,8 @@ public struct FileNavigatorFile<Payload: FileContents,
     NavigationLink(value: proxy.id) { fileLabel(cursor, editedTextBinding, proxy) }
       .onChange(of: viewState.selection, initial: true) {
         if viewState.selection == proxy.id {
-          viewState.selectionContext = .init(name: name, dominantFolder: cursor.parent)
+          viewState.selectionContext = .init(name: name,
+                                             dominantFolder: cursor.parent.wrappedValue?.pathBinding ?? cursor.parent)
         }
       }
   }
@@ -446,7 +430,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
         NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
           .onChange(of: viewState.selection, initial: true) {
             if viewState.selection == folder.id {
-              viewState.selectionContext = .init(name: name, dominantFolder: Binding($folder))
+              viewState.selectionContext = .init(name: name, dominantFolder: folder.pathBinding)
             }
           }
 

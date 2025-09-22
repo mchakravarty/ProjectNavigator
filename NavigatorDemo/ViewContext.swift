@@ -56,7 +56,6 @@ extension ViewContext {
     registerUndo {
 
       let success = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName) ?? false
-      viewState.refreshDominantFolder(updatedFolder: cursor.parent)
       if success {
         viewState.refreshSelectionName(of: id, updatedName: newName)
       }
@@ -85,7 +84,6 @@ extension ViewContext {
   {
     return registerUndo {
       let newName = folder.add(item: item, withPreferredName: preferredName)
-      viewState.refreshDominantFolder(updatedFolder: Binding($folder))
       return newName
     }
   }
@@ -103,7 +101,6 @@ extension ViewContext {
     registerUndo {
       _ = cursor.parent.wrappedValue?.remove(name: cursor.name)
     }
-    viewState.refreshDominantFolder(updatedFolder: cursor.parent)
     if viewState.selection == id {
       viewState.selection = nil
     }

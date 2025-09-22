@@ -231,7 +231,7 @@ struct Navigator: View {
 
         if let dominantFolder = viewState.selectionContext?.dominantFolder.wrappedValue  {
 
-          let name = model.document.texts.filePath(of: dominantFolder.id).lastComponent?.string ?? model.name
+          let name = model.document.texts.filePath(of: dominantFolder.id)?.lastComponent?.string ?? model.name
           VStack(alignment: .leading) {
             Divider()
             Text(name)
@@ -261,7 +261,7 @@ struct Navigator: View {
               Divider()
 #endif
 
-              Text(model.name + "/" + model.document.texts.filePath(of: uuid).string)
+              Text(model.name + "/" + (model.document.texts.filePath(of: uuid)?.string ?? ""))
                 .padding(EdgeInsets(top: 8, leading: 8, bottom: 0, trailing: 8))
 
 #if os(iOS) || os(visionOS)

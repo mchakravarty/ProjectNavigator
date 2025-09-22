@@ -142,9 +142,16 @@ public final class FileTree<Contents: FileContents> {
   /// - Parameter id: The `UUID` of the item whose file path ought to be returned.
   /// - Returns: The file path of the specified item.
   ///
-  /// Returns the empty file path for the root item or any unknown item.
+  /// Returns the empty file path for the root item and nil for any unknown item.
   ///
-  public func filePath(of id: UUID) -> FilePath { filePaths[id] ?? FilePath() }
+  public func filePath(of id: UUID) -> FilePath? {
+    // NB: This function is indirectly used in the initialiser before 'root' is being set to a non-nil value. We
+    //     handle this special case separately, assuming any unknown id gets the root path.
+    if root == nil { filePaths[id] ?? FilePath() }
+    else {
+      if id == root.id { FilePath() } else { filePaths[id] }
+    }
+  }
 
   /// Adds the file path for an item located within a given folder.
   ///
@@ -153,8 +160,10 @@ public final class FileTree<Contents: FileContents> {
   ///   - name: The item's file name.
   ///   - folder: The `UUID` of the folder containing the item.
   ///
+  /// Ignore if the `folder` does not have a file path.
+  ///
   internal func addFilePath(of id: UUID, named name: String, within folder: UUID) {
-    filePaths[id] = filePath(of: folder).appending(name)
+    filePaths[id] = filePath(of: folder)?.appending(name)
   }
 
   /// Removes the file path for the item whose `UUID` is given.
@@ -164,6 +173,115 @@ public final class FileTree<Contents: FileContents> {
   internal func removeFilePath(of id: UUID) {
     filePaths.removeValue(forKey: id)
   }
+
+
+  // MARK: File path lookup
+  
+  /// Determine the file or folder identified by a given file path.
+  ///
+  /// - Parameter filePath: The file path whose file or folder ought to be determined.
+  /// - Returns: The file or folder at the given file path.
+  ///
+  public func lookup(filePath: FilePath) -> ProxyFileOrFolder<Contents>? {
+    var components = filePath.components
+    var current: ProxyFileOrFolder<Contents> = root
+    while !components.isEmpty {
+
+      let component = components.removeFirst()  // We know that `components` is not empty.
+      switch current {
+
+        // As long as we have unresolved components, we shouldn't have hit a file yet.
+      case .file:
+        return nil
+
+      case .folder(let folder):
+        if let child = folder.children[String(decoding: component)] {
+          current = child
+        } else {
+          return nil   // The name does not occur in the dictionary of children.
+        }
+
+      }
+    }
+    return current
+  }
+  
+  /// Look the folder at the given path. If there is no folder, return `nil`.
+  ///
+  /// - Parameter folderPath: The path at which we look up the folder.
+  /// - Returns: The folder at the given path, if any.
+  ///
+  public func lookup(folderAt folderPath: FilePath) -> ProxyFolder<Contents>? {
+    guard case let .folder(root) = root else { return nil }
+
+    func lookup(components: FilePath.ComponentView, in folder: ProxyFolder<Contents>) -> ProxyFolder<Contents>? {
+      if let component               = components.first,
+         case let .folder(subFolder) = folder.children[String(decoding: component)]
+      {
+        return lookup(components: FilePath.ComponentView(components.dropFirst()), in: subFolder)
+
+      } else if components.isEmpty {
+
+        return folder
+
+      } else {
+
+        return nil
+
+      }
+    }
+    return lookup(components: folderPath.components, in: root)
+  }
+
+  /// Set the folder at the given path to a new value. If there is no folder at that path or if it has an id other
+  /// than that of the updating folder value, we do nothing.
+  ///
+  /// - Parameters:
+  ///   - folderPath: The path at which to replace the folder value.
+  ///   - newFolder: The new folder value.
+  ///
+  public func set(folderAt folderPath: FilePath, to newFolder: ProxyFolder<Contents>) {
+
+    func set(components: FilePath.ComponentView, in node: inout ProxyFileOrFolder<Contents>) {
+      if let component            = components.first,
+         case var .folder(folder) = node,
+         var subNode              = folder.children[String(decoding: component)]
+      {
+        set(components: FilePath.ComponentView(components.dropFirst()), in: &subNode)
+        folder.children[String(decoding: component)] = subNode
+        node = .folder(folder)
+
+      } else if components.isEmpty {
+
+        if node.id == newFolder.id { node = .folder(newFolder) }
+
+      }
+    }
+    set(components: folderPath.components, in: &root)
+  }
+
+//  NB: There seems little point in this more general function as proxy files only carry an id, which we never change
+//      during an udpate.
+//  public func set(fileOrFolderAt filePath: FilePath, to newFileOrFolder: ProxyFileOrFolder<Contents>) {
+//
+//    func set(components: FilePath.ComponentView, in node: inout ProxyFileOrFolder<Contents>) {
+//      if let component            = components.first,
+//         case var .folder(folder) = node,
+//         var subNode              = folder.children[String(decoding: component)]
+//      {
+//        set(components: FilePath.ComponentView(components.dropFirst()), in: &subNode)
+//        folder.children[String(decoding: component)] = subNode
+//        node = .folder(folder)
+//
+//      } else if components.isEmpty {
+//
+//        // Only update with a new version of the same node.
+//        if node.id == newFileOrFolder.id { node = newFileOrFolder }
+//
+//      }
+//    }
+//    set(components: filePath.components, in: &root)
+//  }
 
 
   // MARK: Set file tree
@@ -181,7 +299,7 @@ public final class FileTree<Contents: FileContents> {
 
 
 // MARK: -
-// MARK: Binding support for file proxies.
+// MARK: Binding support for file and folder proxies.
 
 extension File.Proxy {
 
@@ -195,6 +313,29 @@ extension File.Proxy {
         // Assigning a file with a different id makes no sense.
         if newFile.id == id { fileTree?.update(file: newFile) }
         
+      }
+    }
+  }
+}
+
+extension Folder {
+
+  // FIXME: This could be generalised to all folders (not just proxies), but is that useful?
+  /// Yield a SwiftUI binding for the current proxy folder on the basis of its path.
+  ///
+  /// The returned binding is stable wrt to changes in the file tree as we look up the path via the folder's id.
+  ///
+  public var pathBinding: Binding<ProxyFolder<Contents>?> {
+    guard let fileTree else { return .constant(nil) }
+
+    return Binding {
+      if let filePath = fileTree.filePath(of: id) { fileTree.lookup(folderAt: filePath) } else { nil }
+
+    } set: { newValue in
+      if let newFolder = newValue,
+         let filePath = fileTree.filePath(of: id)
+      {
+        fileTree.set(folderAt: filePath, to: newFolder)
       }
     }
   }
