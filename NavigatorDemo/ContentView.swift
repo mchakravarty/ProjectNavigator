@@ -150,6 +150,15 @@ struct Navigator: View {
   // Used by the undo manager logic to be able to distinguish between changes made to the text by the user and changes
   // made by the undo manager.
   @State private var changeByUndoManager: Bool = false
+  
+  /// Some changes to the folder proxy structure (such as renaming a child) don't seem to perculate up to the top
+  /// (maybe an optimisation?). Assigning to the selection is a manner to force SwiftUI to redraw.
+  ///
+  func triggerRedraw() {
+    let selection = viewState.selection
+    viewState.selection = nil
+    viewState.selection = selection
+  }
 
   var body: some View {
 
@@ -179,7 +188,10 @@ struct Navigator: View {
 
                 EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
                   .font(.callout)
-                  .onSubmit{ viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText) }
+                  .onSubmit { withAnimation {
+                    viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText)
+                    triggerRedraw()
+                  } }
                   .contextMenu{ FileContextMenu(cursor: cursor,
                                                   editedText: $editedText,
                                                   proxy: proxy,
@@ -192,7 +204,10 @@ struct Navigator: View {
 
                 EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
                   .font(.callout)
-                  .onSubmit{ viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText) }
+                  .onSubmit { withAnimation {
+                    viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText)
+                    triggerRedraw()
+                  } }
                   .contextMenu{ FolderContextMenu(cursor: cursor,
                                                   editedText: $editedText,
                                                   folder: $folder,
