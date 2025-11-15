@@ -50,6 +50,7 @@ extension ViewContext {
   ///
   ///   If needed the dominant folder is being refreshed accordingly.
   ///
+  @MainActor
   func rename(id: UUID, cursor: FileNavigatorCursor<Payload>, @Binding to editedText: String?) {
     guard let newName = editedText else { return }
 
@@ -76,6 +77,7 @@ extension ViewContext {
   ///
   ///   If needed the dominant folder is being refreshed accordingly.
   ///
+  @MainActor
   @discardableResult
   func add(item: FullFileOrFolder<Payload>,
            @Binding to folder: ProxyFolder<Payload>,
@@ -96,6 +98,7 @@ extension ViewContext {
   ///
   ///   If needed the dominant folder is being refreshed accordingly.
   ///
+  @MainActor
   func remove(id: UUID, cursor: FileNavigatorCursor<Payload>) {
 
     registerUndo {
@@ -111,6 +114,7 @@ extension ViewContext {
   ///
   /// During undo, register a redo in a symmetric manner.
   ///
+  @MainActor
   private func registerUndo<Result>(action: () -> Result) -> Result {
 
     // Preserve old value for undo

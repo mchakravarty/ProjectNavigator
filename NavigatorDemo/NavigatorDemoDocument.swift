@@ -11,6 +11,7 @@ import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 import os
+import Synchronization
 
 import Files
 
@@ -76,21 +77,38 @@ struct Payload: FileContents {
 // MARK: -
 // MARK: Document
 
+// NB: This is not nice! However, it seems to be the only way to get the setter on `NavigatorDemoDocument.texts` to
+//     compile without errors. Outside of `NavigatorDemoDocument`, we do restrict the use of file trees to MainActor.
+//     As a result, there are no races on file trees.
+extension FileTree<Payload>: @unchecked @retroactive Sendable { }
+
 @Observable
 final class NavigatorDemoDocument: ReferenceFileDocument {
-  typealias Snapshot = FullFileOrFolder<Payload>
+  
+  /// Snapshot type for `ReferenceFileDocument`.
+  ///
+  struct Snapshot {
+    let texts:     FullFileOrFolder<Payload>
+    let fileIDMap: FileIDMap
+  }
 
-  var texts: FileTree<Payload>
+  private let textsStorage: Mutex<FileTree<Payload>>
+
+  @MainActor
+  var texts: FileTree<Payload> {
+    get { textsStorage.withLock { $0 } }
+    set { textsStorage.withLock { $0 = newValue } }
+  }
 
   static var readableContentTypes: [UTType] { [.textBundle] }
 
   init() {
-    self.texts = FileTree(files: FullFileOrFolder(folder: FullFolder(children: [:])))
+    self.textsStorage = .init(FileTree(files: FullFileOrFolder(folder: FullFolder(children: [:]))))
   }
 
   init(text: String) {
     let folder = FullFolder(children: ["MyText.txt": FileOrFolder(file: File(contents: Payload(text: text)))])
-    self.texts = FileTree(files: FullFileOrFolder(folder: folder))
+    self.textsStorage = .init(FileTree(files: FullFileOrFolder(folder: folder)))
   }
 
   init(configuration: ReadConfiguration) throws {
@@ -115,7 +133,7 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
 
     // Slurp in the tree of folders.
     let folder = try FullFolder<Payload>(fileWrappers: fileWrappers, persistentIDMap: fileMap)
-    texts = FileTree(files: FullFileOrFolder(folder: folder))
+    self.textsStorage = .init(FileTree(files: FullFileOrFolder(folder: folder)))
   }
 
   func snapshot(contentType: UTType) throws -> Snapshot {
@@ -124,16 +142,23 @@ final class NavigatorDemoDocument: ReferenceFileDocument {
       logger.error("Snapshot of unknown content type: identifier = '\(contentType.identifier)'")
     }
 
-    return try texts.snapshot()
+    let snapshot = try textsStorage.withLock { texts in
+      Snapshot(texts: try texts.snapshot(), fileIDMap: texts.fileIDMap)
+    }
+
+    return snapshot
   }
 
+  // NB: This is safe as we access everything through the snapshot and all directory file wrappers (which are mutable) are
+  //     freshly created for this snapshot (i.e., not shared with the document model). Hence, updating the file map will
+  //     not race.
   func fileWrapper(snapshot: Snapshot, configuration: WriteConfiguration) throws -> FileWrapper {
-    let fileWrapper = try snapshot.fileWrapper()
+    let fileWrapper = try snapshot.texts.fileWrapper()
     if fileWrapper.isDirectory {
 
       let encoder = PropertyListEncoder()
       encoder.outputFormat = .xml
-      let newFileMapData = try encoder.encode(texts.fileIDMap)
+      let newFileMapData = try encoder.encode(snapshot.fileIDMap)
 
       if let fileMapWrapper = fileWrapper.fileWrappers?[fileMapName] {
 

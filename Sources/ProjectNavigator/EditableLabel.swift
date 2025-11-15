@@ -100,6 +100,7 @@ extension Binding {
   ///
   /// Inspired by https://pointfree.co as an alternative to the force unwrapping version of SwiftUI.
   ///
+  @MainActor
   public init?(unwrap binding: Binding<Value?>) {
     guard let value = binding.wrappedValue
     else { return nil }

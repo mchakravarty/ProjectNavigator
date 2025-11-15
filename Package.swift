@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 // Copyright 2022 Manuel M T Chakravarty
@@ -64,3 +64,12 @@ let package = Package(
       dependencies: ["ProjectNavigator"]),
   ]
 )
+
+for target in package.targets {
+  var settings = target.swiftSettings ?? []
+  settings.append(contentsOf: [
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+  ])
+  target.swiftSettings = settings
+}

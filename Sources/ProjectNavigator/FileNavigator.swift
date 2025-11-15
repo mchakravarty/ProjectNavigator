@@ -18,7 +18,7 @@ import Files
 // MARK: Navigator environment values
 
 public struct NavigatorFilter: EnvironmentKey {
-  public static let defaultValue: (String) -> Bool = { _ in true }
+  public static let defaultValue: @Sendable (String) -> Bool = { _ in true }
 }
 
 extension EnvironmentValues {
@@ -26,14 +26,14 @@ extension EnvironmentValues {
   /// An environment value containing a function that determines whether an item with the given name ought to displayed
   /// by the file navigator within a folder.
   ///
-  public var navigatorFilter: (String) -> Bool {
+  public var navigatorFilter: @Sendable (String) -> Bool {
     get { self[NavigatorFilter.self] }
     set { self[NavigatorFilter.self] = newValue }
   }
 }
 
 extension View {
-  public func navigatorFilter(_ navigatorFilter: @escaping (String) -> Bool) -> some View {
+  public func navigatorFilter(_ navigatorFilter: @Sendable @escaping (String) -> Bool) -> some View {
     environment(\.navigatorFilter, navigatorFilter)
   }
 }
@@ -45,6 +45,7 @@ extension View {
 /// This class captures a file navigator's view state.
 ///
 @Observable
+@MainActor
 public final class FileNavigatorViewState<Payload: FileContents> {
 
   /// The `UUID` and name of a label that is being edited.
@@ -374,7 +375,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
-  @Environment(\.navigatorFilter) var navigatorFilter: (String) -> Bool
+  @Environment(\.navigatorFilter) var navigatorFilter: @Sendable (String) -> Bool
 
   /// Creates a navigator for the given folder. The navigator needs to be contained in a `NavigationSplitView`.
   ///
@@ -463,6 +464,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
 import _FilesTestSupport
 
+@MainActor
 let _tree = ["Alice"  : "Hello",
              "Bob"    : "Howdy",
              "More"   : ["Sun"  : "Light",

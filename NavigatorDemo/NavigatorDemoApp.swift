@@ -13,6 +13,7 @@ import SwiftUI
 // MARK: App model
 
 @Observable
+@MainActor
 final class NavigatorDemoModel {
 
   var name:     String

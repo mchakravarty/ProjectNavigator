@@ -57,6 +57,12 @@ public final class FileTree<Contents: FileContents> {
     self.files     = fileTree.files
     self.filePaths = fileTree.filePaths
   }
+  
+  /// File tree consisting of an empty folder.
+  ///
+  public init() {
+    self.root = .folder(ProxyFolder(children: [:]))
+  }
 
   
   // MARK: Adding and removing files
@@ -301,7 +307,7 @@ public final class FileTree<Contents: FileContents> {
 // MARK: -
 // MARK: Binding support for file and folder proxies.
 
-extension File.Proxy {
+extension File.Proxy where Contents: SendableMetatype {
 
   /// Yield a SwiftUI binding to the file represented by a proxy.
   /// 
@@ -318,20 +324,23 @@ extension File.Proxy {
   }
 }
 
-extension Folder {
+extension Folder where Contents: SendableMetatype, FileType: SendableMetatype {
 
   // FIXME: This could be generalised to all folders (not just proxies), but is that useful?
   /// Yield a SwiftUI binding for the current proxy folder on the basis of its path.
   ///
   /// The returned binding is stable wrt to changes in the file tree as we look up the path via the folder's id.
   ///
+  /// NB: As they capture the file tree, use these bindings only on MainActor.
+  ///
+  @MainActor
   public var pathBinding: Binding<ProxyFolder<Contents>?> {
     guard let fileTree else { return .constant(nil) }
 
-    return Binding {
+    return Binding { [id] in
       if let filePath = fileTree.filePath(of: id) { fileTree.lookup(folderAt: filePath) } else { nil }
 
-    } set: { newValue in
+    } set: { [id] newValue in
       if let newFolder = newValue,
          let filePath = fileTree.filePath(of: id)
       {

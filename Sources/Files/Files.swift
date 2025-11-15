@@ -34,7 +34,7 @@ public struct FileIDMap: Codable {
 
 /// Payload protocol for file contents. Concrete playload types need to be value types.
 ///
-public protocol FileContents: Equatable {
+public protocol FileContents: Equatable, SendableMetatype {
 
   /// Create a representation of the contents of a file.
   ///
@@ -209,6 +209,15 @@ public struct File<Contents: FileContents>: FileProtocol {
   ///
   public var fileIDMap: FileIDMap { FileIDMap(id: id, children: [:]) }
 }
+
+// NB: The only bit that is not sendable, from the compilers point of view, is `cleanFileWrapper`. However, we do know
+//      that files are only represented by regular file wrappers (and not directory file wrappers). Hence, considering
+//      them sendable is fine.
+extension File: @unchecked Sendable where Contents: Sendable { }
+
+// NB: A `File.Proxy` contains a `FileTree`, which is not sendable, but it is only visible internally and, internally,
+//     it is only read to lookup the file associated with the proxy.
+extension File.Proxy: @unchecked Sendable { }
 
 
 // MARK: -
