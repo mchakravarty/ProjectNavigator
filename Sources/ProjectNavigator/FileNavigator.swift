@@ -74,8 +74,12 @@ public final class FileNavigatorViewState<Payload: FileContents> {
     ///
     /// The dominant folder must use stable path bindings, see `Folder.pathBinding`.
     ///
-    public var dominantFolder: Binding<ProxyFolder<Payload>?>
+    public var dominantFolderID: UUID?
   }
+  
+  /// The file tree displayed by the file navigator.
+  ///
+  public var fileTree: FileTree<Payload>
 
   /// Set of `UUID`s of all expanded folders.
   ///
@@ -100,52 +104,51 @@ public final class FileNavigatorViewState<Payload: FileContents> {
   /// A file navigator's view state.
   ///
   /// - Parameters:
+  ///   - fileTree: The displayed file tree.
   ///   - expansions: The `UUID`s of all expanded folders.
   ///   - selection: The `UUID` of the selected file, if any.
   ///   - editedLabel: The `UUID` and current string of the edited file or folder label, if any.
   ///
-  public init(expansions: WrappedUUIDSet = WrappedUUIDSet(), 
+  public init(fileTree: FileTree<Payload> = .init(),
+              expansions: WrappedUUIDSet = .init(),
               selection: FileOrFolder.ID? = nil,
               editedLabel: EditedLabel? = nil)
   {
+    self.fileTree    = fileTree
     self.expansions  = expansions
     self.selection   = selection
     self.editedLabel = editedLabel
   }
 
-  /// Projects an edited text binding for a given UUID out of our `editedLabel` property.
-  ///
-  /// - Parameter id: The id whose item's label ought to be projected to handle the edited state.
-  /// - Returns: A binding to the projected edited label text.
+  /// Projection of edited text for a given file UUID out of the `editedLabel` property.
   ///
   /// If a label associated with the item identified by `id` is edited, the resulting binding contains the current
   /// value of the edited text. Setting edited text through this binding, while there is no edited label, starts
   /// editing for `id`.
   ///
-  func editedText(for id: UUID) -> Binding<String?> {
-    let thisLabelIsBeingEdited = editedLabel?.id == id,
-        editedText             = thisLabelIsBeingEdited ? editedLabel?.text : nil
+  subscript(editedTextFor id: UUID) -> String? {
+    get { if editedLabel?.id == id { editedLabel?.text } else { nil } }
+    set {
+      let thisLabelIsBeingEdited = editedLabel?.id == id
 
-    return Binding { editedText } set: { [weak self] optionalNewText in
-
-      if let newText = optionalNewText {
+      if let newText = newValue {
 
         // If this label is being edited or no label is being edited YET, we update the edited label, which includes
         // the id and text. Hence, this code path can be used to turn editing for this `id` on (if there is no other
         // edited label yet).
-        if thisLabelIsBeingEdited || self?.editedLabel == nil {
-          self?.editedLabel = FileNavigatorViewState.EditedLabel(id: id, text: newText)
+        if thisLabelIsBeingEdited || editedLabel == nil {
+          editedLabel = FileNavigatorViewState.EditedLabel(id: id, text: newText)
         }
 
       } else {
 
         // If this label is being edited, the editing has ended now
-        if thisLabelIsBeingEdited { self?.editedLabel = nil }
+        if thisLabelIsBeingEdited { editedLabel = nil }
 
       }
     }
   }
-  
+
   /// Refresh the selected name if the given id matches the current selection.
   ///
   /// - Parameters:
@@ -280,10 +283,10 @@ public struct FileNavigator<Payload: FileContents,
 
     }
     // NB: 
-    // * We have got three `.onChange(of: viewState.selection) { ... }` calls: (1) here, (2) on `FileNavigatorFile`, and
-    //   (3) on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at most
-    //   one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a deterministic
-    //   outcome.
+    // * We have got three `.onChange(of: viewState.selection) { ... }` calls: (1) here, (2) on `FileNavigatorFile`,
+    //   and (3) on `FileNavigatorFolder`. All three of these are *non-overlapping*; i.e., during one update loop, at
+    //   most one of these will perform an update of `viewState.dominantFolder`. This is crucial to ensure a
+    //   deterministic outcome.
     // * It seems somewhat unintuitive, but if we have got an empty root folder, this `.onChange(of:initial::)` will
     //   *not* be triggered as it is not attached to any view (the above `FileNavigatorFolder(...)` will essentially
     //   be an empty `ForEach`). Hence, the dominant folder will remain `nil` (unless it has been set earlier).
@@ -295,8 +298,7 @@ public struct FileNavigator<Payload: FileContents,
 
         if case .folder(let root) = item
         {    // we are at the nameless root folder
-          viewState.selectionContext = .init(name: name,
-                                             dominantFolder: root.pathBinding)
+          viewState.selectionContext = .init(name: name, dominantFolderID: root.id)
         }
       }
     }
@@ -346,16 +348,18 @@ public struct FileNavigatorFile<Payload: FileContents,
   }
 
   public var body: some View {
+    @Bindable var viewState = viewState
 
     let cursor            = FileNavigatorCursor(name: name, parent: $parent),
-        editedTextBinding = viewState.editedText(for: proxy.id)
+        editedTextBinding = $viewState[editedTextFor: proxy.id]
 
     // NB: Need an explicit link here to ensure that a single toplevel file is selectable, too.
     NavigationLink(value: proxy.id) { fileLabel(cursor, editedTextBinding, proxy) }
       .onChange(of: viewState.selection, initial: true) {
-        if viewState.selection == proxy.id {
-          viewState.selectionContext = .init(name: name,
-                                             dominantFolder: cursor.parent.wrappedValue?.pathBinding ?? cursor.parent)
+        if viewState.selection == proxy.id,
+           let parent = cursor.parent.wrappedValue
+        {
+          viewState.selectionContext = .init(name: name, dominantFolderID: parent.id)
         }
       }
   }
@@ -403,6 +407,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   }
 
   public var body: some View {
+    @Bindable var viewState = viewState
 
     if let name {
 
@@ -425,13 +430,13 @@ public struct FileNavigatorFolder<Payload: FileContents,
       } label: {
 
         let cursor            = FileNavigatorCursor(name: name, parent: $parent),
-            editedTextBinding = viewState.editedText(for: folder.id)
+            editedTextBinding = $viewState[editedTextFor: folder.id]
 
         // NB: Need an explicit link here to ensure that the toplevel folder is selectable, too.
         NavigationLink(value: folder.id) { folderLabel(cursor, editedTextBinding, $folder) }
           .onChange(of: viewState.selection, initial: true) {
             if viewState.selection == folder.id {
-              viewState.selectionContext = .init(name: name, dominantFolder: folder.pathBinding)
+              viewState.selectionContext = .init(name: name, dominantFolderID: folder.id)
             }
           }
 
@@ -471,176 +476,150 @@ let _tree = ["Alice"  : "Hello",
                          "Moon" : "Twilight"] as OrderedDictionary<String, Any>,
              "Charlie": "Dag"] as OrderedDictionary<String, Any>
 
-struct FileNavigator_Previews: PreviewProvider {
+#Preview("FileNavigator") {
+  let item = FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
+  let fileTree = FileTree(files: item)
 
-  struct Container: View {
-    let fileTree: FileTree<Payload>
+  @Bindable var viewState = FileNavigatorViewState<Payload>(fileTree: fileTree,
+                                                            expansions: WrappedUUIDSet(),
+                                                            selection: nil,
+                                                            editedLabel: nil)
 
-    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
-                                                              selection: nil,
-                                                              editedLabel: nil)
+  NavigationSplitView {
+    List(selection: $viewState.selection) {
 
-    var body: some View {
+      FileNavigator(name: "Root",
+                    item: .constant(fileTree.root),
+                    parent: .constant(nil),
+                    viewState: viewState,
+                    fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                    folderLabel: { cursor, _editing, _ in Text(cursor.name) })
 
-      NavigationSplitView {
-        List(selection: $viewState.selection) {
-
-          FileNavigator(name: "Root",
-                        item: .constant(fileTree.root),
-                        parent: .constant(nil),
-                        viewState: viewState,
-                        fileLabel: { cursor, _editing, _ in Text(cursor.name) },
-                        folderLabel: { cursor, _editing, _ in Text(cursor.name) })
-
-        }
-        .navigationTitle("Entries")
-
-      } detail: {
-
-        if let uuid = viewState.selection,
-           let file = fileTree.proxy(for: uuid).file
-        {
-
-          Text(file.contents.text)
-
-        } else {
-
-          Text("Select a file")
-
-        }
-      }
     }
-  }
+    .navigationTitle("Entries")
 
-  static var previews: some View {
-    let item = FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree)))
+  } detail: {
 
-    Container(fileTree: FileTree(files: item))
+    if let uuid = viewState.selection,
+       let file = fileTree.proxy(for: uuid).file
+    {
+
+      Text(file.contents.text)
+
+    } else {
+
+      Text("Select a file")
+
+    }
   }
 }
 
-struct FileNavigatorEditLabel_Previews: PreviewProvider {
+#Preview("EditLabel") {
 
-  struct Container: View {
-    @State var fileTree
-      = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
+  @Previewable @State var fileTree
+    = FileTree(files: FullFileOrFolder<Payload>(folder: try! Folder(tree: try! treeToPayload(tree: _tree))))
 
-    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
-                                                              selection: nil,
-                                                              editedLabel: nil)
+  @Bindable var viewState = FileNavigatorViewState<Payload>(fileTree: fileTree,
+                                                            expansions: WrappedUUIDSet(),
+                                                            selection: nil,
+                                                            editedLabel: nil)
 
-    var body: some View {
+  NavigationSplitView {
+    List(selection: $viewState.selection) {
 
-      NavigationSplitView {
-        List(selection: $viewState.selection) {
-
-          FileNavigator(name: "Root",
-                        item: $fileTree.root,
-                        parent: .constant(nil),
-                        viewState: viewState,
-                        fileLabel: { cursor, $editedText, _ in
-                                       EditableLabel(cursor.name,
-                                                     systemImage: "doc.plaintext.fill",
-                                                     editedText: $editedText)
-                                         .onSubmit {
-                                           if let newName = editedText {
-                                             _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
-                                             editedText = nil
-                                           }
+      FileNavigator(name: "Root",
+                    item: $fileTree.root,
+                    parent: .constant(nil),
+                    viewState: viewState,
+                    fileLabel: { cursor, $editedText, _ in
+                                   EditableLabel(cursor.name,
+                                                 systemImage: "doc.plaintext.fill",
+                                                 editedText: $editedText)
+                                     .onSubmit {
+                                       if let newName = editedText {
+                                         _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
+                                         editedText = nil
+                                       }
+                                     }
+                                     .contextMenu {
+                                       Button {
+                                         editedText = cursor.name
+                                       } label: {
+                                         Label("Change name", systemImage: "pencil")
+                                       }
+                                     }
+                                },
+                    folderLabel: { cursor, $editedText, _ in
+                                     EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
+                                       .onSubmit {
+                                         if let newName = editedText {
+                                           _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
+                                           editedText = nil
                                          }
-                                         .contextMenu {
-                                           Button {
-                                             editedText = cursor.name
-                                           } label: {
-                                             Label("Change name", systemImage: "pencil")
-                                           }
+                                       }
+                                       .contextMenu {
+                                         Button {
+                                           editedText = cursor.name
+                                         } label: {
+                                           Label("Change name", systemImage: "pencil")
                                          }
-                                    },
-                        folderLabel: { cursor, $editedText, _ in
-                                         EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
-                                           .onSubmit {
-                                             if let newName = editedText {
-                                               _ = cursor.parent.wrappedValue?.rename(name: cursor.name, to: newName)
-                                               editedText = nil
-                                             }
-                                           }
-                                           .contextMenu {
-                                             Button {
-                                               editedText = cursor.name
-                                             } label: {
-                                               Label("Change name", systemImage: "pencil")
-                                             }
-                                           }
-                                     })
+                                       }
+                                 })
 
-        }
-        .navigationTitle("Entries")
-
-      } detail: {
-
-        if let uuid = viewState.selection,
-           let file = fileTree.proxy(for: uuid).file
-        {
-
-          Text(file.contents.text)
-
-        } else {
-
-          Text("Select a file")
-
-        }
-      }
     }
-  }
+    .navigationTitle("Entries")
 
-  static var previews: some View {
-    Container()
+  } detail: {
+
+    if let uuid = viewState.selection,
+       let file = fileTree.proxy(for: uuid).file
+    {
+
+      Text(file.contents.text)
+
+    } else {
+
+      Text("Select a file")
+
+    }
   }
 }
 
-struct FileNavigatorSingleFile_Previews: PreviewProvider {
+#Preview("SingleFile") {
 
-  struct Container: View {
-    let fileTree: FileTree<Payload>
+  let item = FullFileOrFolder(file: File<Payload>(contents: Payload(text: "Awesome contents")))
 
-    @Bindable var viewState = FileNavigatorViewState<Payload>(expansions: WrappedUUIDSet(),
-                                                              selection: nil,
-                                                              editedLabel: nil)
-    var body: some View {
+  let fileTree = FileTree(files: item)
 
-      NavigationSplitView {
-        List(selection: $viewState.selection) {
+  @Bindable var viewState = FileNavigatorViewState<Payload>(fileTree: fileTree,
+                                                            expansions: WrappedUUIDSet(),
+                                                            selection: nil,
+                                                            editedLabel: nil)
+  NavigationSplitView {
+    List(selection: $viewState.selection) {
 
-          FileNavigator(name: "TheFile",
-                        item: .constant(fileTree.root),
-                        parent: .constant(nil),
-                        viewState: viewState,
-                        fileLabel: { cursor, _editing, _ in Text(cursor.name) },
-                        folderLabel: { cursor, _editing, _ in Text(cursor.name) })
+      FileNavigator(name: "TheFile",
+                    item: .constant(fileTree.root),
+                    parent: .constant(nil),
+                    viewState: viewState,
+                    fileLabel: { cursor, _editing, _ in Text(cursor.name) },
+                    folderLabel: { cursor, _editing, _ in Text(cursor.name) })
 
-        }
-        .navigationTitle("Entries")
-
-      } detail: {
-
-        if let uuid = viewState.selection,
-           let file = fileTree.proxy(for: uuid).file
-        {
-
-          Text(file.contents.text)
-
-        } else {
-
-          Text("Select a file")
-
-        }
-      }
     }
-  }
+    .navigationTitle("Entries")
 
-  static var previews: some View {
-    let item = FullFileOrFolder(file: File<Payload>(contents: Payload(text: "Awesome contents")))
+  } detail: {
 
-    Container(fileTree: FileTree(files: item))
+    if let uuid = viewState.selection,
+       let file = fileTree.proxy(for: uuid).file
+    {
+
+      Text(file.contents.text)
+
+    } else {
+
+      Text("Select a file")
+
+    }
   }
 }

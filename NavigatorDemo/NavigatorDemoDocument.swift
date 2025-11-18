@@ -30,7 +30,7 @@ extension UTType {
 
 struct Payload: FileContents {
 
-  /// Text in a file if its a text file containing UTF-8.
+  /// Text in a file if it's a text file containing UTF-8.
   ///
   var text: String? {
     didSet {

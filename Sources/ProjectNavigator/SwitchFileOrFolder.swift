@@ -26,8 +26,8 @@ public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, Fold
   ///   - folderCase: Subview for the folder case, binding the folder contents.
   ///
   public init(fileOrFolder: Binding<ProxyFileOrFolder<Contents>>,
-              fileCase: @escaping (File<Contents>.Proxy) -> FileContent,
-              folderCase: @escaping (Binding<ProxyFolder<Contents>>) -> FolderContent)
+              @ViewBuilder fileCase: @escaping (File<Contents>.Proxy) -> FileContent,
+              @ViewBuilder folderCase: @escaping (Binding<ProxyFolder<Contents>>) -> FolderContent)
   {
     self._fileOrFolder = fileOrFolder
     self.fileCase      = fileCase
@@ -35,15 +35,8 @@ public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, Fold
   }
 
   public var body: some View {
-    switch fileOrFolder {
 
-    case .file(let proxy):
-      fileCase(proxy)
-
-    case .folder(let folder):
-      let folderBinding = Binding { return folder } set: { fileOrFolder = .folder($0) }
-      folderCase(folderBinding)
-
-    }
+    if let folderBinding = Binding($fileOrFolder.folder) { folderCase(folderBinding) }
+    else if case let .file(proxy) = fileOrFolder { fileCase(proxy) }
   }
 }

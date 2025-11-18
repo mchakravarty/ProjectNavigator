@@ -70,7 +70,7 @@ struct FolderContextMenu: View {
     Button {
       withAnimation {
         let newFile = FileOrFolder<File<Payload>, Payload>(file: File(contents: Payload(text: "")))
-        if let newName = viewContext.add(item: newFile, $to: $folder, withPreferredName: "Text.txt") {
+        if let newName = viewContext.add(item: newFile, to: $folder, withPreferredName: "Text.txt") {
 
           viewContext.viewState.selection = newFile.id
           Task { @MainActor in
@@ -86,7 +86,7 @@ struct FolderContextMenu: View {
     Button {
       withAnimation {
         let newFolder = FileOrFolder<File<Payload>, Payload>(folder: Folder(children: [:]))
-        if let newName = viewContext.add(item: newFolder, $to: $folder, withPreferredName: "Folder") {
+        if let newName = viewContext.add(item: newFolder, to: $folder, withPreferredName: "Folder") {
 
           viewContext.viewState.selection = newFolder.id
           Task { @MainActor in
@@ -151,15 +151,6 @@ struct Navigator: View {
   // made by the undo manager.
   @State private var changeByUndoManager: Bool = false
   
-  /// Some changes to the folder proxy structure (such as renaming a child) don't seem to perculate up to the top
-  /// (maybe an optimisation?). Assigning to the selection is a manner to force SwiftUI to redraw.
-  ///
-  func triggerRedraw() {
-    let selection = viewState.selection
-    viewState.selection = nil
-    viewState.selection = selection
-  }
-
   var body: some View {
 
     @Bindable var model = model
@@ -174,25 +165,26 @@ struct Navigator: View {
 
         } folderCase: { $folder in
 
-          List(selection: $viewState.selection) {
+          ScrollViewReader { scrollViewProxy in
+            List(selection: $viewState.selection) {
 
-            let (sectionName, itemName): (String, String?) = if inSections { (model.name, nil) }
-                                                             else { ("Text Bundle", model.name) }
-            Section(isExpanded: $viewState.expansions[folder.id]) {
+              let (sectionName, itemName): (String, String?) = if inSections { (model.name, nil) }
+              else { ("Text Bundle", model.name) }
+              Section(isExpanded: $viewState.expansions[folder.id]) {
 
-              FileNavigator(name: itemName,
-                            item: $model.document.texts.root,
-                            parent: .constant(nil),
-                            viewState: viewState)
-              { cursor, $editedText, proxy in
+                FileNavigator(name: itemName,
+                              item: $model.document.texts.root,
+                              parent: .constant(nil),
+                              viewState: viewState)
+                { cursor, $editedText, proxy in
 
-                EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
-                  .font(.callout)
-                  .onSubmit { withAnimation {
-                    viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText)
-                    triggerRedraw()
-                  } }
-                  .contextMenu{ FileContextMenu(cursor: cursor,
+                  EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
+                    .font(.callout)
+                    .onSubmit { withAnimation {
+                      viewContext.rename(id: proxy.id, cursor: cursor, $to: $editedText)
+                      Task{ scrollViewProxy.scrollTo(viewState.selection) } // delay: to let the redraw get started
+                    } }
+                    .contextMenu{ FileContextMenu(cursor: cursor,
                                                   editedText: $editedText,
                                                   proxy: proxy,
                                                   viewContext: viewContext) }
@@ -200,53 +192,57 @@ struct Navigator: View {
                       editedText = cursor.name
                     }
 
-              } folderLabel: { cursor, $editedText, $folder in
+                } folderLabel: { cursor, $editedText, $folder in
 
-                EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
-                  .font(.callout)
-                  .onSubmit { withAnimation {
-                    viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText)
-                    triggerRedraw()
-                  } }
-                  .contextMenu{ FolderContextMenu(cursor: cursor,
-                                                  editedText: $editedText,
+                  EditableLabel(cursor.name, systemImage: "folder.fill", editedText: $editedText)
+                    .font(.callout)
+                    .onSubmit { withAnimation {
+                      viewContext.rename(id: folder.id, cursor: cursor, $to: $editedText)
+                      Task{ scrollViewProxy.scrollTo(viewState.selection) } // delay: to let the redraw get started
+                    } }
+                    .contextMenu{ FolderContextMenu(cursor: cursor,
+                                                    editedText: $editedText,
+                                                    folder: $folder,
+                                                    viewContext: viewContext) }
+                    .onTapGestureIf(viewState.selection == folder.id) {
+                      editedText = cursor.name
+                    }
+
+                }
+                .listStyle(.sidebar)
+                .navigatorFilter{ $0.first != "." }
+                .navigationTitle(model.name)
+#if os(iOS)
+                .navigationBarTitleDisplayMode(.large)
+#endif
+              } header: {
+                Text(sectionName)
+                  .contextMenu{ FolderContextMenu(cursor: FileNavigatorCursor(name: model.name,
+                                                                              parent: .constant(nil)),
+                                                  editedText: .constant(nil),
                                                   folder: $folder,
                                                   viewContext: viewContext) }
-                  .onTapGestureIf(viewState.selection == folder.id) {
-                    editedText = cursor.name
-                  }
-
               }
-              .listStyle(.sidebar)
-              .navigatorFilter{ $0.first != "." }
-              .navigationTitle(model.name)
-#if os(iOS)
-              .navigationBarTitleDisplayMode(.large)
-#endif
-            } header: {
-              Text(sectionName)
-                .contextMenu{ FolderContextMenu(cursor: FileNavigatorCursor(name: model.name, parent: .constant(nil)),
-                                                editedText: .constant(nil),
-                                                folder: $folder,
-                                                viewContext: viewContext) }
+            }
+            .onKeyPress(.return) {
+
+              // If no label editing is in progress, but we have got a selection, start editing the selected label.
+              guard viewState.editedLabel == nil,
+                    let selection     = viewState.selection,
+                    let selectionName = viewState.selectionContext?.name
+              else { return .ignored }
+              viewState.editedLabel = FileNavigatorViewState.EditedLabel(id: selection, text: selectionName)
+              return .handled
+            }
+            .onChange(of: viewState.selection) {
+              scrollViewProxy.scrollTo(viewState.selection)
             }
           }
-          .onKeyPress(.return) {
-
-            // If no label editing is in progress, but we have got a selection, start editing the selected label.
-            guard viewState.editedLabel == nil,
-                  let selection     = viewState.selection,
-                  let selectionName = viewState.selectionContext?.name
-            else { return .ignored }
-            viewState.editedLabel = FileNavigatorViewState.EditedLabel(id: selection, text: selectionName)
-            return .handled
-          }
-
         }
 
-        if let dominantFolder = viewState.selectionContext?.dominantFolder.wrappedValue  {
+        if let dominantFolderID = viewState.selectionContext?.dominantFolderID  {
 
-          let name = model.document.texts.filePath(of: dominantFolder.id)?.lastComponent?.string ?? model.name
+          let name = model.document.texts.filePath(of: dominantFolderID)?.lastComponent?.string ?? model.name
           VStack(alignment: .leading) {
             Divider()
             Text(name)
@@ -262,11 +258,8 @@ struct Navigator: View {
 
         Spacer()
 
-        if let uuid = viewState.selection,
-           // NB: We need our own unwrapping version here (not the implicitly unwrapping one from Apple); otherwise,
-           //     we crash when removing the currently selected file. It would be better to avoid the crash in a
-            //    different manner.
-            let $file = Binding(unwrap: model.document.texts.proxy(for: uuid).binding) {
+        if let uuid  = viewState.selection,
+           let $file = Binding($viewState.fileTree[file: uuid]) {
 
           if let $text = Binding($file.contents.text) {
 
@@ -338,7 +331,7 @@ struct Navigator: View {
 }
 
 
-/// This is the toplevel content view. It expects the app model as the environment object.
+/// This is the toplevel content view.
 ///
 struct ContentView: View {
   let configuration: ReferenceFileDocumentConfiguration<NavigatorDemoDocument>?
@@ -378,9 +371,10 @@ struct ContentView: View {
         if let configuration,
            navigatorDemoModel.fileURL == nil
         {
-          navigatorDemoModel.name     = configuration.fileURL?.lastPathComponent ?? "Untitled"
-          navigatorDemoModel.fileURL  = configuration.fileURL
-          navigatorDemoModel.document = configuration.document
+          navigatorDemoModel.name          = configuration.fileURL?.lastPathComponent ?? "Untitled"
+          navigatorDemoModel.fileURL       = configuration.fileURL
+          navigatorDemoModel.document      = configuration.document
+          fileNavigationViewState.fileTree = configuration.document.texts
         }
       }
 

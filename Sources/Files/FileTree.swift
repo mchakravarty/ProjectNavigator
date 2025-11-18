@@ -37,7 +37,6 @@ public final class FileTree<Contents: FileContents> {
 
   /// The relative path of all files and folders of this file tree *without* the root name.
   ///
-  @ObservationIgnored
   private var filePaths: [UUID: FilePath] = [:]
 
 
@@ -305,46 +304,27 @@ public final class FileTree<Contents: FileContents> {
 
 
 // MARK: -
-// MARK: Binding support for file and folder proxies.
+// MARK: File and folder projects on UUIDs.
 
-extension File.Proxy where Contents: SendableMetatype {
+extension FileTree {
 
-  /// Yield a SwiftUI binding to the file represented by a proxy.
-  /// 
-  public var binding: Binding<File<Contents>?> {
-    return Binding { file } set: { newValue in
-      
+  public subscript (file id: UUID) -> File<Contents>? {
+    get { lookup(fileId: id) }
+    set {
       if let newFile = newValue {
-
         // Assigning a file with a different id makes no sense.
-        if newFile.id == id { fileTree?.update(file: newFile) }
-        
+        if newFile.id == id { update(file: newFile) }
       }
     }
   }
-}
 
-extension Folder where Contents: SendableMetatype, FileType: SendableMetatype {
-
-  // FIXME: This could be generalised to all folders (not just proxies), but is that useful?
-  /// Yield a SwiftUI binding for the current proxy folder on the basis of its path.
-  ///
-  /// The returned binding is stable wrt to changes in the file tree as we look up the path via the folder's id.
-  ///
-  /// NB: As they capture the file tree, use these bindings only on MainActor.
-  ///
-  @MainActor
-  public var pathBinding: Binding<ProxyFolder<Contents>?> {
-    guard let fileTree else { return .constant(nil) }
-
-    return Binding { [id] in
-      if let filePath = fileTree.filePath(of: id) { fileTree.lookup(folderAt: filePath) } else { nil }
-
-    } set: { [id] newValue in
+  public subscript(folder id: UUID) -> ProxyFolder<Contents>? {
+    get { if let filePath = filePath(of: id) { lookup(folderAt: filePath) } else { nil } }
+    set {
       if let newFolder = newValue,
-         let filePath = fileTree.filePath(of: id)
+         let filePath = filePath(of: id)
       {
-        fileTree.set(folderAt: filePath, to: newFolder)
+        set(folderAt: filePath, to: newFolder)
       }
     }
   }

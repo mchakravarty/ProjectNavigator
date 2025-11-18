@@ -239,6 +239,20 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
   public static func == (lhs: FileOrFolder<FileType, Contents>, rhs: FileOrFolder<FileType, Contents>) -> Bool {
     lhs.id == rhs.id
   }
+  
+  /// File case projection.
+  ///
+  public var file: FileType? {
+    get { if case let .file(contents) = self { contents } else { nil } }
+    set { if let newValue { self = .file(newValue) } }
+  }
+
+  /// Folder case projection.
+  ///
+  public var folder: Folder<FileType, Contents>? {
+    get { if case let .folder(folder) = self { folder } else { nil } }
+    set { if let newValue { self = .folder(newValue) } }
+  }
 
 
   // MARK: Initialisers

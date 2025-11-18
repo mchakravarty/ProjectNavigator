@@ -80,14 +80,25 @@ extension ViewContext {
   @MainActor
   @discardableResult
   func add(item: FullFileOrFolder<Payload>,
-           @Binding to folder: ProxyFolder<Payload>,
+           to folder: Binding<ProxyFolder<Payload>>,
            withPreferredName preferredName: String)
   -> String?
   {
-    return registerUndo {
-      let newName = folder.add(item: item, withPreferredName: preferredName)
-      return newName
+//    return registerUndo {
+    print("*** ADDING FILE in \(folder.wrappedValue.id) containing '\(folder.wrappedValue.children.keys.joined(separator: ", "))'")
+//    var localFolder = folder.wrappedValue
+//    let newName = localFolder.add(item: item, withPreferredName: preferredName)
+//    folder.wrappedValue = localFolder
+    let newName = folder.wrappedValue.add(item: item, withPreferredName: preferredName)
+    if newName != nil {
+      print("*** ADDED FILE in \(folder.wrappedValue.id) containing '\(folder.wrappedValue.children.keys.joined(separator: ", "))'")
+    } else {
+      print("*** COULDN'T ADD FILE in \(folder.wrappedValue.id)")
     }
+      return newName
+//    let bla = _folder
+
+//    }
   }
 
   /// Remove the item idenfified by the given cursor.
