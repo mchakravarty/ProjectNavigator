@@ -84,21 +84,9 @@ extension ViewContext {
            withPreferredName preferredName: String)
   -> String?
   {
-//    return registerUndo {
-    print("*** ADDING FILE in \(folder.wrappedValue.id) containing '\(folder.wrappedValue.children.keys.joined(separator: ", "))'")
-//    var localFolder = folder.wrappedValue
-//    let newName = localFolder.add(item: item, withPreferredName: preferredName)
-//    folder.wrappedValue = localFolder
-    let newName = folder.wrappedValue.add(item: item, withPreferredName: preferredName)
-    if newName != nil {
-      print("*** ADDED FILE in \(folder.wrappedValue.id) containing '\(folder.wrappedValue.children.keys.joined(separator: ", "))'")
-    } else {
-      print("*** COULDN'T ADD FILE in \(folder.wrappedValue.id)")
+    return registerUndo {
+      folder.wrappedValue.add(item: item, withPreferredName: preferredName)
     }
-      return newName
-//    let bla = _folder
-
-//    }
   }
 
   /// Remove the item idenfified by the given cursor.
