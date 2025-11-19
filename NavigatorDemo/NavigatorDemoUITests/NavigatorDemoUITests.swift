@@ -27,13 +27,84 @@ final class NavigatorDemoUITests: XCTestCase {
 
     let app = XCUIApplication()
     app.activate()
-    app/*@START_MENU_TOKEN@*/.menuBarItems["File"]/*[[".menuBarItems",".containing(.menuItem, identifier: \"Open Recent\")",".containing(.menuItem, identifier: \"openDocument:\")",".containing(.menuItem, identifier: \"newDocument:\")",".menuBars.menuBarItems[\"File\"]",".menuBarItems[\"File\"]"],[[[-1,5],[-1,4],[-1,0,1]],[[-1,3],[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.firstMatch.click()
-    app/*@START_MENU_TOKEN@*/.menuItems["newDocument:"]/*[[".menus",".menuItems[\"New\"]",".menuItems[\"newDocument:\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.firstMatch.click()
+    app.menuBarItems["File"].firstMatch.click()
+    app.menuItems["newDocument:"].firstMatch.click()
 
-    XCTAssertTrue(app.staticTexts["Untitled"].waitForExistence(timeout: 3), "Untitled document exists")
+    XCTAssertTrue(app.staticTexts["Untitled"].waitForExistence(timeout: 2), "Untitled document exists")
 
-    app/*@START_MENU_TOKEN@*/.buttons["MyText.txt"]/*[[".cells.buttons[\"MyText.txt\"]",".buttons[\"MyText.txt\"]"],[[[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.firstMatch.click()
-    app/*@START_MENU_TOKEN@*/.outlines["Sidebar"].firstMatch/*[[".scrollViews.outlines[\"Sidebar\"].firstMatch",".outlines",".containing(.outlineRow, identifier: nil).firstMatch",".firstMatch",".outlines[\"Sidebar\"].firstMatch"],[[[-1,4],[-1,1,1],[-1,0]],[[-1,3],[-1,2]]],[0]]@END_MENU_TOKEN@*/.typeKey("q", modifierFlags:.command)
+    app.buttons["MyText.txt"].firstMatch.click()
+
+    app.outlines["Sidebar"].firstMatch.typeKey("q", modifierFlags:.command)
+  }
+
+  @MainActor
+  func testNewFile() throws {
+    let app = XCUIApplication()
+    app.activate()
+    app.menuBarItems["File"].firstMatch.click()
+    app.menuItems["newDocument:"].firstMatch.click()
+
+    _ = app.buttons["Untitled"].waitForExistence(timeout: 2)
+    app.buttons["Untitled"].firstMatch.rightClick()
+    app.menuItems["doc.badge.plus"].firstMatch.click()
+
+    let element = app.cells.containing(.group, identifier: nil).firstMatch
+    element.typeKey(.leftArrow, modifierFlags:.function)
+    element.typeKey(.rightArrow, modifierFlags:[.shift, .function])
+    element.typeKey(.rightArrow, modifierFlags:[.shift, .function])
+    element.typeKey(.rightArrow, modifierFlags:[.shift, .function])
+    element.typeKey(.rightArrow, modifierFlags:[.shift, .function])
+    element.typeText("Test\r")
+
+    XCTAssertTrue(app.buttons["Test.txt"].waitForExistence(timeout: 2), "Test.txt file exists")
+
+    app.outlines["Sidebar"].firstMatch.typeKey("q", modifierFlags:.command)
+  }
+
+  @MainActor
+  func testTwoNewFiles() throws {
+    let app = XCUIApplication()
+    app.activate()
+    app.menuBarItems["File"].firstMatch.click()
+    app.menuItems["newDocument:"].firstMatch.click()
+
+    _ = app.buttons["Untitled"].waitForExistence(timeout: 2)
+    app.buttons["Untitled"].firstMatch.rightClick()
+    app.menuItems["doc.badge.plus"].firstMatch.click()
+
+    app.buttons["Untitled"].firstMatch.rightClick()
+    app.menuItems["doc.badge.plus"].firstMatch.click()
+
+    app.cells.element(boundBy: 0).typeText("\r")
+    XCTAssertTrue(app.buttons["Text1.txt"].waitForExistence(timeout: 2), "Text1.txt file exists")
+
+    app.outlines["Sidebar"].firstMatch.typeKey("q", modifierFlags:.command)
+  }
+
+  @MainActor
+  func testTwoNewDeleteOneFiles() throws {
+    let app = XCUIApplication()
+    app.activate()
+    app.menuBarItems["File"].firstMatch.click()
+    app.menuItems["newDocument:"].firstMatch.click()
+
+    _ = app.buttons["Untitled"].waitForExistence(timeout: 2)
+    app.buttons["Untitled"].firstMatch.rightClick()
+    app.menuItems["doc.badge.plus"].firstMatch.click()
+
+    app.buttons["Untitled"].firstMatch.rightClick()
+    app.menuItems["doc.badge.plus"].firstMatch.click()
+
+    app.cells.element(boundBy: 0).typeText("\r")
+    XCTAssertTrue(app.buttons["Text1.txt"].waitForExistence(timeout: 2), "Text1.txt file exists")
+
+    app.buttons["Untitled"].firstMatch.click()
+    app.buttons["Text1.txt"].firstMatch.rightClick()
+    app/*@START_MENU_TOKEN@*/.menuItems["trash"]/*[[".outlines.menuItems[\"Delete\"]",".menus.menuItems[\"trash\"]",".menuItems[\"trash\"]"],[[[-1,2],[-1,1],[-1,0]]],[0]]@END_MENU_TOKEN@*/.firstMatch.click()
+
+    XCTAssertTrue(app.buttons["Text1.txt"].waitForNonExistence(timeout: 3), "Text1.txt doesn't exist (anymore)")
+
+    app.outlines["Sidebar"].firstMatch.typeKey("q", modifierFlags:.command)
   }
 
 //    @MainActor
