@@ -7,6 +7,9 @@
 
 import XCTest
 
+// FIXME: add iOS UI tests
+#if os(macOS)
+
 final class NavigatorDemoUITests: XCTestCase {
 
   override func setUpWithError() throws {
@@ -21,6 +24,7 @@ final class NavigatorDemoUITests: XCTestCase {
   override func tearDownWithError() throws {
     // Put teardown code here. This method is called after the invocation of each test method in the class.
   }
+
 
   @MainActor
   func testNewDocument() throws {
@@ -115,3 +119,5 @@ final class NavigatorDemoUITests: XCTestCase {
 //        }
 //    }
 }
+
+#endif
