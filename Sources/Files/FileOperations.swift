@@ -9,7 +9,7 @@ import Foundation
 import os
 
 
-private let logger = Logger(subsystem: "org.justtesting.BundleNavigator", category: "FileOperations")
+private let logger = Logger(subsystem: "org.justtesting.ProjectNavigator", category: "FileOperations")
 
 
 extension Folder {

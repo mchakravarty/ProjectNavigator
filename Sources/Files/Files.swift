@@ -22,7 +22,7 @@ import os
 import OrderedCollections
 
 
-private let logger = Logger(subsystem: "org.justtesting.BundleNavigator", category: "Files")
+private let logger = Logger(subsystem: "org.justtesting.ProjectNavigator", category: "Files")
 
 
 /// A file id map associates `UUID`s with files and folders of a file tree.
@@ -30,6 +30,11 @@ private let logger = Logger(subsystem: "org.justtesting.BundleNavigator", catego
 public struct FileIDMap: Codable {
   let id:       UUID
   var children: [String: FileIDMap]
+
+  public init(id: UUID, children: [String : FileIDMap]) {
+    self.id       = id
+    self.children = children
+  }
 }
 
 /// Payload protocol for file contents. Concrete playload types need to be value types.
