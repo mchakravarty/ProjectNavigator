@@ -415,16 +415,15 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
         ForEach(folder.children.elements.filter{ navigatorFilter($0.key) }, id: \.value.id) { keyValue in
 
-          // FIXME: This is not nice...
-          let i = folder.children.keys.firstIndex(of: keyValue.key)!
-          FileNavigator(name: keyValue.key,
-                        isRoot: false,
-                        item: $folder.children.values[i],
-                        parent: Binding($folder),
-                        viewState: viewState,
-                        fileLabel: fileLabel,
-                        folderLabel: folderLabel)
-
+          if let $item = Binding(unwrap: $folder.children[keyValue.key]) {
+            FileNavigator(name: keyValue.key,
+                          isRoot: false,
+                          item: $item,
+                          parent: Binding($folder),
+                          viewState: viewState,
+                          fileLabel: fileLabel,
+                          folderLabel: folderLabel)
+          }
         }
 
       } label: {
@@ -446,20 +445,17 @@ public struct FileNavigatorFolder<Payload: FileContents,
 
       ForEach(folder.children.elements.filter{ navigatorFilter($0.key) }, id: \.value.id) { keyValue in
 
-        // FIXME: This is not nice...
-        let i = folder.children.keys.firstIndex(of: keyValue.key)!
-        FileNavigator(name: keyValue.key,
-                      isRoot: false,
-                      item: $folder.children.values[i],
-                      parent: Binding($folder),
-                      viewState: viewState,
-                      fileLabel: fileLabel,
-                      folderLabel: folderLabel)
-
+        if let $item = Binding(unwrap: $folder.children[keyValue.key]) {
+          FileNavigator(name: keyValue.key,
+                        isRoot: false,
+                        item: $item,
+                        parent: Binding($folder),
+                        viewState: viewState,
+                        fileLabel: fileLabel,
+                        folderLabel: folderLabel)
+        }
       }
-
     }
-
   }
 }
 
