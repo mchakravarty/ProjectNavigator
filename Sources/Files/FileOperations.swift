@@ -90,7 +90,7 @@ extension Folder {
     } else { return nil }
   }
 
-  /// Rename the item with to the given new name.
+  /// Rename the item with the given new name.
   ///
   /// - Parameters:
   ///   - name: The current name of the item.
@@ -106,6 +106,7 @@ extension Folder {
     func renameFilePaths(of item: FileOrFolder<FileType,Contents>, named name: String, within folder: UUID) {
       fileTree?.addFilePath(of: item.id, named: name, within: folder)
       switch item {
+      case .link: break
       case .file: break
       case .folder(let folder):
         for child in folder.children { renameFilePaths(of: child.value, named: child.key, within: folder.id) }

@@ -159,7 +159,11 @@ struct Navigator: View {
 
       VStack {
 
-        SwitchFileOrFolder(fileOrFolder: $model.document.texts.root) { _file in
+        SwitchFileOrFolder(fileOrFolder: $model.document.texts.root) { _link in
+
+          Text("Impossible!")
+
+        } fileCase: { _file in
 
           Text("Impossible!")
 
@@ -176,7 +180,11 @@ struct Navigator: View {
                               item: $model.document.texts.root,
                               parent: .constant(nil),
                               viewState: viewState)
-                { cursor, $editedText, proxy in
+                { cursor, $editedText, link in
+
+                  Label(cursor.name, systemImage: "link.circle.fill")
+
+                } fileLabel: { cursor, $editedText, proxy in
 
                   EditableLabel(cursor.name, systemImage: "doc.plaintext.fill", editedText: $editedText)
                     .font(.callout)

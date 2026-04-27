@@ -10,11 +10,17 @@ import SwiftUI
 import Files
 
 
-/// Dispatch on a file or folder choice of a binding, such that the cases receive bindings of the respective component.
+/// Dispatch on a link, file, or folder choice of a binding, such that the cases receive bindings of the respective
+/// component.
 ///
-public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, FolderContent: View>: View {
+public struct SwitchFileOrFolder<Contents: FileContents,
+                                  LinkContent: View,
+                                  FileContent: View,
+                                  FolderContent: View>: View
+{
   @Binding public var fileOrFolder: ProxyFileOrFolder<Contents>
 
+  public let linkCase:   (Binding<IdentifiableURL>) -> LinkContent
   public let fileCase:   (File<Contents>.Proxy) -> FileContent
   public let folderCase: (Binding<ProxyFolder<Contents>>) -> FolderContent
 
@@ -26,10 +32,12 @@ public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, Fold
   ///   - folderCase: Subview for the folder case, binding the folder contents.
   ///
   public init(fileOrFolder: Binding<ProxyFileOrFolder<Contents>>,
+              @ViewBuilder linkCase: @escaping (Binding<IdentifiableURL>) -> LinkContent,
               @ViewBuilder fileCase: @escaping (File<Contents>.Proxy) -> FileContent,
               @ViewBuilder folderCase: @escaping (Binding<ProxyFolder<Contents>>) -> FolderContent)
   {
     self._fileOrFolder = fileOrFolder
+    self.linkCase      = linkCase
     self.fileCase      = fileCase
     self.folderCase    = folderCase
   }
@@ -37,6 +45,7 @@ public struct SwitchFileOrFolder<Contents: FileContents, FileContent: View, Fold
   public var body: some View {
 
     if let folderBinding = Binding($fileOrFolder.folder) { folderCase(folderBinding) }
+    if let linkBinding = Binding($fileOrFolder.link) { linkCase(linkBinding) }
     else if case let .file(proxy) = fileOrFolder { fileCase(proxy) }
   }
 }

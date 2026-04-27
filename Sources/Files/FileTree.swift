@@ -81,8 +81,13 @@ public final class FileTree<Contents: FileContents> {
   ///
   internal func removeContainedFiles<FileType: FileProtocol>(item: FileOrFolder<FileType, Contents>) {
     switch item {
+
+    case .link:
+      break
+
     case .file(let file):
       files.removeValue(forKey: file.id)
+
     case .folder(let folder):
       for item in folder.children.values { removeContainedFiles(item: item) }
     }
@@ -195,8 +200,8 @@ public final class FileTree<Contents: FileContents> {
       let component = components.removeFirst()  // We know that `components` is not empty.
       switch current {
 
-        // As long as we have unresolved components, we shouldn't have hit a file yet.
-      case .file:
+        // As long as we have unresolved components, we shouldn't have hit a link or file yet.
+      case .link, .file:
         return nil
 
       case .folder(let folder):

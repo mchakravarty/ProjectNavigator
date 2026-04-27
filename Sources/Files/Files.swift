@@ -228,16 +228,28 @@ extension File.Proxy: @unchecked Sendable { }
 // MARK: -
 // MARK: File or folder
 
+public struct IdentifiableURL: Identifiable {
+  public let id:  UUID
+  public let url: URL
+
+  public init(id: UUID, url: URL) {
+    self.id  = id
+    self.url = url
+  }
+}
+
 /// Represents a file or folder item, where the concrete type of files is a parameter.
 ///
 public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identifiable, Equatable {
+  case link(IdentifiableURL)
   case file(FileType)
   case folder(Folder<FileType, Contents>)
 
   public var id: UUID {
     switch self {
-    case .file(let file):     return file.id as UUID
-    case .folder(let folder): return folder.id
+    case .link(let url):      url.id
+    case .file(let file):     file.id
+    case .folder(let folder): folder.id
     }
   }
 
@@ -245,6 +257,13 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
     lhs.id == rhs.id
   }
   
+  /// Link case projection.
+  ///
+  public var link: IdentifiableURL? {
+    get { if case let .link(url) = self { url } else { nil } }
+    set { if let newValue { self = .link(newValue) } }
+  }
+
   /// File case projection.
   ///
   public var file: FileType? {
@@ -285,11 +304,14 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
   public func sameContents(fileOrFolder: FileOrFolder<FileType, Contents>) -> Bool {
     switch self {
 
+    case .link(let selfURL):
+      if case let .link(url) = fileOrFolder { selfURL.url == url.url } else { false }
+
     case .file(let selfFile):
-      if case let .file(file) = fileOrFolder { return selfFile.sameContents(file: file) } else { return false }
+      if case let .file(file) = fileOrFolder { selfFile.sameContents(file: file) } else { false }
 
     case .folder(let selfFolder):
-      if case let .folder(folder) = fileOrFolder { return selfFolder.sameContents(folder: folder) } else { return false }
+      if case let .folder(folder) = fileOrFolder { selfFolder.sameContents(folder: folder) } else { false }
 
     }
   }
@@ -298,11 +320,9 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
   ///
   public func fileWrapper() throws -> FileWrapper {
     switch self {
-    case .file(let file):
-      return try file.fileWrapper()
-
-    case .folder(let folder):
-      return try folder.fileWrapper()
+    case .link(let url):      FileWrapper(symbolicLinkWithDestinationURL: url.url)
+    case .file(let file):     try file.fileWrapper()
+    case .folder(let folder): try folder.fileWrapper()
     }
   }
 
@@ -310,8 +330,9 @@ public enum FileOrFolder<FileType: FileProtocol, Contents: FileContents>: Identi
   ///
   public var fileIDMap: FileIDMap {
     switch self {
-    case .file(let file):     return FileIDMap(id: file.id, children: [:])
-    case .folder(let folder): return folder.fileIDMap
+    case .link(let url):      FileIDMap(id: url.id, children: [:])
+    case .file(let file):     FileIDMap(id: file.id, children: [:])
+    case .folder(let folder): folder.fileIDMap
     }
   }
 }
@@ -341,11 +362,11 @@ extension FileOrFolder {
 
       self = .folder(try Folder<FileType, Contents>(fileWrappers: fileWrappers, persistentIDMap: fileMap))
 
-    } else if fileWrapper.isSymbolicLink {
+    } else if fileWrapper.isSymbolicLink,
+              let url = fileWrapper.symbolicLinkDestinationURL
+    {
 
-      let name = fileWrapper.preferredFilename ?? fileWrapper.filename ?? "<unknown name>"
-      logger.error("File wrapper for '\(name)' is a symbolic link, which is currently notÒ supported")
-      throw CocoaError(.fileReadCorruptFile)
+      self = .link(IdentifiableURL(id: fileMap?.id ?? UUID(), url: url))
 
     } else {
 
@@ -362,11 +383,9 @@ extension FileOrFolder {
   where FileType == File<Contents>
   {
     switch self {
-    case .file(let file):
-      return .file(fileTree.addFile(file: file))
-
-    case .folder(let folder):
-      return .folder(folder.proxy(within: fileTree))
+    case .link(let url):         .link(url)
+    case .file(let file):        .file(fileTree.addFile(file: file))
+    case .folder(let folder):    .folder(folder.proxy(within: fileTree))
     }
   }
 }
@@ -382,6 +401,9 @@ extension FileOrFolder {
   where FileType == File<Contents>.Proxy
   {
     switch self {
+    case .link(let url):
+      return .link(url)
+
     case .file(let file):
       if let fullFile = file.file { return .file(fullFile) }
       else {

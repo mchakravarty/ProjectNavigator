@@ -184,6 +184,12 @@ public struct FileNavigatorCursor<Payload: FileContents> {
 // MARK: -
 // MARK: Views
 
+/// Builds a view for a link item, given the cursor for that item, a binding to an optional edited name, and the
+/// binding to the linked URL.
+///
+public typealias NavigatorLinkViewBuilder<Payload: FileContents, NavigatorView: View>
+  = (FileNavigatorCursor<Payload>, Binding<String?>, Binding<IdentifiableURL>) -> NavigatorView
+
 /// Builds a view for a file item, given the cursor for that item, a binding to an optional edited name, and the proxy
 /// for the file.
 ///
@@ -199,6 +205,7 @@ public typealias NavigatorFolderViewBuilder<Payload: FileContents, NavigatorView
 // Represents a file tree in a navigation view.
 //
 public struct FileNavigator<Payload: FileContents,
+                            LinkLabelView: View,
                             FileLabelView: View,
                             FolderLabelView: View>: View {
   @Binding var item:   ProxyFileOrFolder<Payload>
@@ -208,6 +215,7 @@ public struct FileNavigator<Payload: FileContents,
 
   let name:        String?
   let isRoot:      Bool
+  let linkLabel:   NavigatorLinkViewBuilder<Payload, LinkLabelView>
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
@@ -220,6 +228,7 @@ public struct FileNavigator<Payload: FileContents,
   ///   - item: The file item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
+  ///   - linkLabel: A view builder to produce a label for a link.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
@@ -229,14 +238,17 @@ public struct FileNavigator<Payload: FileContents,
                                  item: Binding<ProxyFileOrFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
                                  viewState: FileNavigatorViewState<Payload>,
+                                 @ViewBuilder linkLabel: @escaping NavigatorLinkViewBuilder<Payload, LinkLabelView>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
+                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload,
+                                                                                                FolderLabelView>)
   {
     self.init(name: name,
               isRoot: true,
               item: item,
               parent: parent,
               viewState: viewState,
+              linkLabel: linkLabel,
               fileLabel: fileLabel,
               folderLabel: folderLabel)
   }
@@ -249,28 +261,38 @@ public struct FileNavigator<Payload: FileContents,
                                    item: Binding<ProxyFileOrFolder<Payload>>,
                                    parent: Binding<ProxyFolder<Payload>?>,
                                    viewState: FileNavigatorViewState<Payload>,
+                                   @ViewBuilder linkLabel: @escaping NavigatorLinkViewBuilder<Payload, LinkLabelView>,
                                    @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
-                                   @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
+                                   @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload,
+                                                                                                  FolderLabelView>)
   {
     self._item       = item
     self._parent     = parent
     self.name        = name.map{ String($0) }
     self.isRoot      = isRoot
     self.viewState   = viewState
+    self.linkLabel   = linkLabel
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
   }
 
   public var body: some View {
 
-    SwitchFileOrFolder(fileOrFolder: $item) { file in
+    SwitchFileOrFolder(fileOrFolder: $item) { $url in
+
+      FileNavigatorLink(name: name ?? "Contents",
+                        url: $url,
+                        parent: $parent,
+                        viewState: viewState,
+                        linkLabel: linkLabel)
+
+    } fileCase: { file in
 
       FileNavigatorFile(name: name ?? "Contents",
                         proxy: file,
                         parent: $parent,
                         viewState: viewState,
-                        fileLabel: fileLabel,
-                        folderLabel: folderLabel)
+                        fileLabel: fileLabel)
 
     } folderCase: { $folder in
 
@@ -278,6 +300,7 @@ public struct FileNavigator<Payload: FileContents,
                           folder: $folder,
                           parent: $parent,
                           viewState: viewState,
+                          linkLabel: linkLabel,
                           fileLabel: fileLabel,
                           folderLabel: folderLabel)
 
@@ -307,18 +330,69 @@ public struct FileNavigator<Payload: FileContents,
 
 // Represents a single file in a navigation view.
 //
-public struct FileNavigatorFile<Payload: FileContents,
-                                FileLabelView: View,
-                                FolderLabelView: View>: View {
+public struct FileNavigatorLink<Payload: FileContents, LinkLabelView: View>: View {
+  @Binding var url: IdentifiableURL
+
+  @Binding var parent: ProxyFolder<Payload>?
+
+  var viewState: FileNavigatorViewState<Payload>
+
+  let name:      String
+  let linkLabel: NavigatorLinkViewBuilder<Payload, LinkLabelView>
+
+  // TODO: We probably also need a version of the initialiser that takes a `LocalizedStringKey`.
+
+  /// Creates a navigation link for a single link. The link needs to be contained in a `NavigationSplitView`.
+  ///
+  /// - Parameters:
+  ///   - name: The name of the link.
+  ///   - url: Binding to the linked URL.
+  ///   - parent: The folder in which the item is contained, if any.
+  ///   - viewState: This navigator's view state.
+  ///   - linkLabel: A view builder to produce a label for a file.
+  ///
+  public init<S: StringProtocol>(name: S,
+                                 url: Binding<IdentifiableURL>,
+                                 parent: Binding<ProxyFolder<Payload>?>,
+                                 viewState: FileNavigatorViewState<Payload>,
+                                 @ViewBuilder linkLabel: @escaping NavigatorLinkViewBuilder<Payload, LinkLabelView>)
+  {
+    self._url      = url
+    self._parent   = parent
+    self.name      = String(name)
+    self.viewState = viewState
+    self.linkLabel = linkLabel
+  }
+
+  public var body: some View {
+    @Bindable var viewState = viewState
+
+    let cursor            = FileNavigatorCursor(name: name, parent: $parent),
+        editedTextBinding = $viewState[editedTextFor: url.id]
+
+    // NB: Need an explicit link here to ensure that a single toplevel link is selectable, too.
+    NavigationLink(value: url.id) { linkLabel(cursor, editedTextBinding, $url) }
+      .onChange(of: viewState.selection, initial: true) {
+        if viewState.selection == url.id,
+           let parent = cursor.parent.wrappedValue
+        {
+          viewState.selectionContext = .init(name: name, dominantFolderID: parent.id)
+        }
+      }
+  }
+}
+
+// Represents a single file in a navigation view.
+//
+public struct FileNavigatorFile<Payload: FileContents, FileLabelView: View>: View {
   let proxy: File<Payload>.Proxy
 
   @Binding var parent: ProxyFolder<Payload>?
 
   var viewState: FileNavigatorViewState<Payload>
 
-  let name:        String
-  let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
-  let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
+  let name:      String
+  let fileLabel: NavigatorFileViewBuilder<Payload, FileLabelView>
 
   // TODO: We probably also need a version of the initialiser that takes a `LocalizedStringKey`.
 
@@ -330,21 +404,18 @@ public struct FileNavigatorFile<Payload: FileContents,
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
   ///   - fileLabel: A view builder to produce a label for a file.
-  ///   - folderLabel: A view builder to produce a label for a folder.
   ///
   public init<S: StringProtocol>(name: S,
                                  proxy: File<Payload>.Proxy,
                                  parent: Binding<ProxyFolder<Payload>?>,
                                  viewState: FileNavigatorViewState<Payload>,
-                                 @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
+                                 @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>)
   {
     self.proxy       = proxy
     self._parent     = parent
     self.name        = String(name)
     self.viewState   = viewState
     self.fileLabel   = fileLabel
-    self.folderLabel = folderLabel
   }
 
   public var body: some View {
@@ -368,14 +439,17 @@ public struct FileNavigatorFile<Payload: FileContents,
 /// Represents a folder in a navigation view.
 ///
 public struct FileNavigatorFolder<Payload: FileContents,
+                                  LinkLabelView: View,
                                   FileLabelView: View,
-                                  FolderLabelView: View>: View {
+                                  FolderLabelView: View>: View
+{
   @Binding var folder: ProxyFolder<Payload>
   @Binding var parent: ProxyFolder<Payload>?
 
   @Bindable var viewState: FileNavigatorViewState<Payload>
 
   let name:        String?
+  let linkLabel:   NavigatorLinkViewBuilder<Payload, LinkLabelView>
   let fileLabel:   NavigatorFileViewBuilder<Payload, FileLabelView>
   let folderLabel: NavigatorFolderViewBuilder<Payload, FolderLabelView>
 
@@ -388,6 +462,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
   ///   - folder: The folder item whose hierachy is being navigated.
   ///   - parent: The folder in which the item is contained, if any.
   ///   - viewState: This navigator's view state.
+  ///   - linkLabel: A view builder to produce a label for a link.
   ///   - fileLabel: A view builder to produce a label for a file.
   ///   - folderLabel: A view builder to produce a label for a folder.
   ///
@@ -395,13 +470,16 @@ public struct FileNavigatorFolder<Payload: FileContents,
                                  folder: Binding<ProxyFolder<Payload>>,
                                  parent: Binding<ProxyFolder<Payload>?>,
                                  viewState: FileNavigatorViewState<Payload>,
+                                 @ViewBuilder linkLabel: @escaping NavigatorLinkViewBuilder<Payload, LinkLabelView>,
                                  @ViewBuilder fileLabel: @escaping NavigatorFileViewBuilder<Payload, FileLabelView>,
-                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload, FolderLabelView>)
+                                 @ViewBuilder folderLabel: @escaping NavigatorFolderViewBuilder<Payload,
+                                                                                                FolderLabelView>)
   {
     self._folder     = folder
     self._parent     = parent
     self.name        = name.map{ String($0) }
     self.viewState   = viewState
+    self.linkLabel   = linkLabel
     self.fileLabel   = fileLabel
     self.folderLabel = folderLabel
   }
@@ -421,6 +499,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
                           item: $item,
                           parent: Binding($folder),
                           viewState: viewState,
+                          linkLabel: linkLabel,
                           fileLabel: fileLabel,
                           folderLabel: folderLabel)
           }
@@ -451,6 +530,7 @@ public struct FileNavigatorFolder<Payload: FileContents,
                         item: $item,
                         parent: Binding($folder),
                         viewState: viewState,
+                        linkLabel: linkLabel,
                         fileLabel: fileLabel,
                         folderLabel: folderLabel)
         }
@@ -488,6 +568,7 @@ let _tree = ["Alice"  : "Hello",
                     item: .constant(fileTree.root),
                     parent: .constant(nil),
                     viewState: viewState,
+                    linkLabel: { cursor, _editing, _ in Text(cursor.name) },
                     fileLabel: { cursor, _editing, _ in Text(cursor.name) },
                     folderLabel: { cursor, _editing, _ in Text(cursor.name) })
 
@@ -527,6 +608,7 @@ let _tree = ["Alice"  : "Hello",
                     item: $fileTree.root,
                     parent: .constant(nil),
                     viewState: viewState,
+                    linkLabel: { cursor, _editing, _ in Text(cursor.name) },
                     fileLabel: { cursor, $editedText, _ in
                                    EditableLabel(cursor.name,
                                                  systemImage: "doc.plaintext.fill",
@@ -598,6 +680,7 @@ let _tree = ["Alice"  : "Hello",
                     item: .constant(fileTree.root),
                     parent: .constant(nil),
                     viewState: viewState,
+                    linkLabel: { cursor, _editing, _ in Text(cursor.name) },
                     fileLabel: { cursor, _editing, _ in Text(cursor.name) },
                     folderLabel: { cursor, _editing, _ in Text(cursor.name) })
 

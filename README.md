@@ -30,6 +30,7 @@ var body: some View {
                     item: .constant(fileTree.root),
                     parent: .constant(nil),
                     viewState: viewState,
+                    linkLabel: { cursor, _editing, _ in Text(cursor.name) },
                     fileLabel: { cursor, _editing, _ in Text(cursor.name) },
                     folderLabel: { cursor, _editing, _ in Text(cursor.name) })
 
@@ -67,6 +68,6 @@ You may want to browse the DocC documentation for the [`Files` target](https://s
 
 ## License
 
-Copyright [2022..2025] Manuel M. T. Chakravarty. 
+Copyright [2022..2026] Manuel M. T. Chakravarty. 
 
 Distributed under the Apache-2.0 license — see the [license file](LICENSE) for details.
