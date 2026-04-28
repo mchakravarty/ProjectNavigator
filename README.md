@@ -68,6 +68,6 @@ You may want to browse the DocC documentation for the [`Files` target](https://s
 
 ## License
 
-Copyright [2022..2026] Manuel M. T. Chakravarty. 
+Copyright [2022..2026] Manuel M. T. Chakravarty.
 
 Distributed under the Apache-2.0 license — see the [license file](LICENSE) for details.
