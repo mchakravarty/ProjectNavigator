@@ -29,7 +29,14 @@ public final class FileTree<Contents: FileContents> {
   ///
   /// Implicitly optional to allow for a circular dependency during initialisation.
   /// 
-  public var root: ProxyFileOrFolder<Contents>!
+  public var root: ProxyFileOrFolder<Contents>! {
+    didSet { if root != nil { rootID = root.id } }  // NB: see `init(files:)`
+  }
+  
+  /// Cache of the id of the root to enable access without accessing the `root` variable. That helps to avoid
+  /// simultaneous access to the folder struct of the root in some operations.
+  ///
+  private var rootID: UUID?
 
   /// All files contained in the file tree.
   ///
@@ -154,14 +161,7 @@ public final class FileTree<Contents: FileContents> {
   ///
   /// Returns the empty file path for the root item and nil for any unknown item.
   ///
-  public func filePath(of id: UUID) -> FilePath? {
-    // NB: This function is indirectly used in the initialiser before 'root' is being set to a non-nil value. We
-    //     handle this special case separately, assuming any unknown id gets the root path.
-    if root == nil { filePaths[id] ?? FilePath() }
-    else {
-      if id == root.id { FilePath() } else { filePaths[id] }
-    }
-  }
+  public func filePath(of id: UUID) -> FilePath? { if id == rootID { FilePath() } else { filePaths[id] } }
 
   /// Adds the file path for an item located within a given folder.
   ///
@@ -216,7 +216,7 @@ public final class FileTree<Contents: FileContents> {
     return current
   }
   
-  /// Look the folder at the given path. If there is no folder, return `nil`.
+  /// Look up the folder at the given path. If there is no folder, return `nil`.
   ///
   /// - Parameter folderPath: The path at which we look up the folder.
   /// - Returns: The folder at the given path, if any.

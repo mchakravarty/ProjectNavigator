@@ -136,6 +136,16 @@ public struct File<Contents: FileContents>: FileProtocol {
   /// the file wrapper is absent.
   ///
   private var cleanFileWrapper: FileWrapper?
+  
+  /// Whether the contents was changed, but not yet flushed into a file wrapper.
+  /// 
+  public var isDirty: Bool { cleanFileWrapper == nil }
+
+  /// Modification date of the clean file wrapper if any.
+  ///
+  public var fileWrapperModificationDate: Date? {
+    cleanFileWrapper?.fileAttributes[FileAttributeKey.modificationDate.rawValue] as? Date
+  }
 
 
   // MARK: Initialisers

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import System
 import os
 
 
@@ -124,5 +125,156 @@ extension Folder {
       return true
 
     } else { return false }
+  }
+
+  /// Possible changes performed by `overwrite(with:preserveUnsavedEdits)`.
+  ///
+  public enum Change {
+    case added(path: String)
+    case modified(path: String)
+    case removed(path: String)
+
+    public var path: String {
+      switch self {
+      case .added(path: let path):    path
+      case .modified(path: let path): path
+      case .removed(path: let path):  path
+      }
+    }
+  }
+
+  /// The current contents gets overwritten with the contents of the given directory `fileWrapper`, performing as few
+  /// changes as possible.
+  ///
+  /// - Parameters:
+  ///   - fileWrapper: Directory file wrapper with the new content for the folder
+  ///   - preserveUnsavedEdits: Whether regular files that have unsaved content should be overwritten or be preserved.
+  /// - Returns: An array with all the changes that have been performed.
+  ///
+  /// New items get added, changed items are updated, and items that do not occur in `fileWrapper` are being removed.
+  ///
+  @discardableResult
+  public mutating func overwrite(with fileWrapper: FileWrapper, preserveUnsavedEdits: Bool) throws -> [Change]
+  where FileType == File<Contents>.Proxy
+  {
+    guard fileWrapper.isDirectory,
+          let fileWrappers = fileWrapper.fileWrappers
+    else { return [] }
+
+    return try overwrite(with: fileWrappers, at: FilePath(), preserveUnsavedEdits: preserveUnsavedEdits)
+  }
+
+  fileprivate mutating func overwrite(with fileWrappers: [String: FileWrapper],
+                                      at path: FilePath,
+                                      preserveUnsavedEdits: Bool)
+  throws -> [Change]
+  where FileType == File<Contents>.Proxy
+  {
+    let itemsToAdd    = Set(fileWrappers.keys).subtracting(children.keys),
+        itemsToRemove = children.keys.subtracting(fileWrappers.keys),
+        itemsToUpdate = children.keys.intersection(fileWrappers.keys)
+
+    // Remove
+    itemsToRemove.forEach{ remove(name: $0) }
+
+    // Add
+    // NB: We just got the key from `fileWrappers.keys`, which makes the `!` safe.
+    try itemsToAdd.forEach{ add(item: try FileOrFolder(fileWrapper: fileWrappers[$0]!), withPreferredName: $0) }
+
+    // Update
+    var updateChanges: [Change] = []
+    for itemName in itemsToUpdate {
+
+      let item        = children[itemName],
+          fileWrapper = fileWrappers[itemName]! // NB: We just got the key from `fileWrappers.keys`, which makes the `!` safe.
+      if let (updatedItem, changes) = try item?.overwrite(with: fileWrapper,
+                                                          at: path.appending(itemName),
+                                                          preserveUnsavedEdits: preserveUnsavedEdits)
+      {
+        switch updatedItem {
+
+        case .updateWith(let itemProxy):
+          children[itemName] = itemProxy
+
+        case .removeAndAdd(let item):
+          remove(name: itemName)
+          add(item: item, withPreferredName: itemName)
+
+        case .skip:
+          break
+        }
+        updateChanges += changes
+      }
+    }
+
+    return itemsToAdd.map{ .added(path: path.appending($0).string) }
+           + itemsToRemove.map{ .removed(path: path.appending($0).string) }
+           + updateChanges
+  }
+}
+
+extension FileOrFolder {
+
+  fileprivate enum OverwriteResult {
+    case updateWith(ProxyFileOrFolder<Contents>)   // update a file with a file or a folder with a folder
+    case removeAndAdd(FullFileOrFolder<Contents>)  // remove subtree and add a new one
+    case skip
+  }
+
+  fileprivate func overwrite(with fileWrapper: FileWrapper,
+                             at path: FilePath,
+                             preserveUnsavedEdits: Bool)
+  throws -> (OverwriteResult, [Folder<FileType, Contents>.Change])
+  where FileType == File<Contents>.Proxy
+  {
+    switch self {
+
+    case .file(let file):
+
+      let oldFileWrapperDate = file.file?.fileWrapperModificationDate ?? (preserveUnsavedEdits ? .now :  .distantPast),
+          newFileWrapperDate = (fileWrapper.fileAttributes[FileAttributeKey.modificationDate.rawValue] as? Date) ?? .now
+
+      if fileWrapper.isRegularFile && newFileWrapperDate > oldFileWrapperDate,
+         let fileTree = file.fileTree
+      {
+
+        // If we overwrite a file with a regular file wrapper and there are no unsaved edits that we want to preserve,
+        // and the file wrapper is sufficiently recent, we create a new file representation from the given file wrapper.
+
+        let item      = try File<Contents>(fileWrapper: fileWrapper,
+                                           persistentIDMap: FileIDMap(id: file.id, children: [:])),
+            itemProxy = fileTree.addFile(file: item)
+        return (.updateWith(.file(itemProxy)), [.modified(path: path.string)])
+
+      } else if !fileWrapper.isRegularFile {
+
+        // Otherwise, we have to do a full removal of the old item and addition of the new one.
+
+        let item = try FullFileOrFolder<Contents>(fileWrapper: fileWrapper)
+        return (.removeAndAdd(item), [.modified(path: path.string)])
+
+      } else {
+        return (.skip, [])
+      }
+
+    case .folder(var folder):
+      if fileWrapper.isDirectory,
+         let fileWrappers = fileWrapper.fileWrappers
+      {
+
+        let changes = try folder.overwrite(with: fileWrappers, at: path, preserveUnsavedEdits: preserveUnsavedEdits)
+        return (.updateWith(.folder(folder)), changes)
+
+      } else {
+
+        let item = try FullFileOrFolder<Contents>(fileWrapper: fileWrapper)
+        return (.removeAndAdd(item), [.modified(path: path.string)])
+
+      }
+
+    case .link:
+      let item = try FullFileOrFolder<Contents>(fileWrapper: fileWrapper)
+      return (.removeAndAdd(item), [.modified(path: path.string)])
+    }
   }
 }
