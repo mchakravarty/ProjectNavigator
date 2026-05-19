@@ -107,8 +107,8 @@ public final class FileTree<Contents: FileContents> {
   /// Flush all files in the file tree.
   ///
   public func flush() throws {
-    for var file in files.values {
-      try file.flush()
+    for key in files.keys {
+      try files[key]?.flush()
     }
   }
 

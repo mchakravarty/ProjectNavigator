@@ -128,7 +128,10 @@ public struct File<Contents: FileContents>: FileProtocol {
   /// Application-specific representation of the file contents.
   ///
   public var contents: Contents {
-    didSet { cleanFileWrapper = nil }
+    didSet {
+      cleanFileWrapper         = nil
+      contentsModificationDate = .now
+    }
   }
 
   /// The file wrapper from which this item was created (if any) or that the item was flushed into. The property is
@@ -137,6 +140,10 @@ public struct File<Contents: FileContents>: FileProtocol {
   ///
   private var cleanFileWrapper: FileWrapper?
   
+  /// Last modification date of `contents`.
+  ///
+  private var contentsModificationDate: Date
+
   /// Whether the contents was changed, but not yet flushed into a file wrapper.
   /// 
   public var isDirty: Bool { cleanFileWrapper == nil }
@@ -146,6 +153,10 @@ public struct File<Contents: FileContents>: FileProtocol {
   public var fileWrapperModificationDate: Date? {
     cleanFileWrapper?.fileAttributes[FileAttributeKey.modificationDate.rawValue] as? Date
   }
+  
+  /// Last modification date of this file.
+  ///
+  public var modificationDate: Date { fileWrapperModificationDate ?? contentsModificationDate }
 
 
   // MARK: Initialisers
@@ -158,9 +169,10 @@ public struct File<Contents: FileContents>: FileProtocol {
   ///   - persistentID: Persistent identifier that get's created at initialisation time if not already provided.
   ///
   public init(contents: Contents, fileWrapper: FileWrapper? = nil, persistentID uuid: UUID = UUID()) {
-    id                    = uuid
-    self.contents         = contents
-    self.cleanFileWrapper = fileWrapper?.isRegularFile == true ? fileWrapper : nil
+    id                            = uuid
+    self.contents                 = contents
+    self.cleanFileWrapper         = fileWrapper?.isRegularFile == true ? fileWrapper : nil
+    self.contentsModificationDate = .now
   }
 
   /// Initialise a file from a file wrapper.
@@ -227,7 +239,8 @@ public struct File<Contents: FileContents>: FileProtocol {
 
 // NB: The only bit that is not sendable, from the compilers point of view, is `cleanFileWrapper`. However, we do know
 //      that files are only represented by regular file wrappers (and not directory file wrappers). Hence, considering
-//      them sendable is fine.
+//      them sendable is fine. (With the caveat that using `FileWrapper.read(from:options:)` does update regular file
+//      wrappers, too.)
 extension File: @unchecked Sendable where Contents: Sendable { }
 
 // NB: A `File.Proxy` contains a `FileTree`, which is not sendable, but it is only visible internally and, internally,

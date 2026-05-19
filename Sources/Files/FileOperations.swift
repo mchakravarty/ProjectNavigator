@@ -231,7 +231,9 @@ extension FileOrFolder {
 
     case .file(let file):
 
-      let oldFileWrapperDate = file.file?.fileWrapperModificationDate ?? (preserveUnsavedEdits ? .now :  .distantPast),
+      let oldFileWrapperDate = preserveUnsavedEdits
+                               ? (file.file?.modificationDate ?? .now)
+                               : (file.file?.fileWrapperModificationDate ?? .distantPast),
           newFileWrapperDate = (fileWrapper.fileAttributes[FileAttributeKey.modificationDate.rawValue] as? Date) ?? .now
 
       if fileWrapper.isRegularFile && newFileWrapperDate > oldFileWrapperDate,

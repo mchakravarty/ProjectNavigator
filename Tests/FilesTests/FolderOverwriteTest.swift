@@ -38,7 +38,7 @@ struct FolderOverwriteTest {
   @Test("Preserve single file")
   func testSingleFilePreserve() throws {
 
-    let payload                              = Payload(text: "main = print 42"),
+    let payload                              = Payload(text: "main = print 41"),
         tree: OrderedDictionary<String, Any> = ["Main.hs": payload]
 
     // File tree before overwriting
@@ -49,6 +49,9 @@ struct FolderOverwriteTest {
     let directoryFileWrapper = FileWrapper(directoryWithFileWrappers:
                                             ["Main.hs": FileWrapper(regularFileWithContents:
                                                                       "main = print 43".data(using: .utf8)!)])
+
+    // Update file contents, which gives it a more recent time stamp
+    fileTree[file: folder.children["Main.hs"]!.id]?.contents.text = "main = print 42"
 
     try fileTree.root.folder?.overwrite(with: directoryFileWrapper, preserveUnsavedEdits: true)
     let snapshort = try fileTree.snapshot()
