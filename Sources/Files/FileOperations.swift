@@ -153,6 +153,10 @@ extension Folder {
   ///
   /// New items get added, changed items are updated, and items that do not occur in `fileWrapper` are being removed.
   ///
+  /// Typically `fileWrapper` will be the result of a `FileWrapper.read(from:options)` operation that may have inplace
+  /// updated clean file wrappers of some files. To account for that possibility, this function also invokes
+  /// `Files.refreshContentsIfStale()` on all files, where this may be the case.
+  ///
   @discardableResult
   public mutating func overwrite(with fileWrapper: FileWrapper, preserveUnsavedEdits: Bool) throws -> [Change]
   where FileType == File<Contents>.Proxy
@@ -256,7 +260,16 @@ extension FileOrFolder {
         return (.removeAndAdd(item), [.modified(path: path.string)])
 
       } else {
+
+        // If a clean file wrapper could have been updated by a read, refresh the file's contents if needed.
+        if newFileWrapperDate == oldFileWrapperDate,
+           let fileTree = file.fileTree
+        {
+          fileTree[file: file.id]?.refreshContentsIfStale()
+        }
+
         return (.skip, [])
+
       }
 
     case .folder(var folder):

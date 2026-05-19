@@ -172,7 +172,9 @@ public struct File<Contents: FileContents>: FileProtocol {
     id                            = uuid
     self.contents                 = contents
     self.cleanFileWrapper         = fileWrapper?.isRegularFile == true ? fileWrapper : nil
-    self.contentsModificationDate = .now
+    contentsModificationDate      = (cleanFileWrapper?.fileAttributes[FileAttributeKey.modificationDate.rawValue]
+                                     as? Date)
+                                    ?? .now
   }
 
   /// Initialise a file from a file wrapper.
@@ -215,7 +217,13 @@ public struct File<Contents: FileContents>: FileProtocol {
   ///
   public mutating func flush() throws {
     try contents.flush()
-    if cleanFileWrapper == nil { cleanFileWrapper = try FileWrapper(regularFileWithContents: contents.data()) }
+    if cleanFileWrapper == nil {
+
+      cleanFileWrapper         = try FileWrapper(regularFileWithContents: contents.data())
+      contentsModificationDate = (cleanFileWrapper?.fileAttributes[FileAttributeKey.modificationDate.rawValue] as? Date)
+                                 ?? .now
+
+    }
   }
 
   /// Yield an up to date file wrapper for the file contents.
@@ -235,6 +243,31 @@ public struct File<Contents: FileContents>: FileProtocol {
   /// Yield a file map for this file.
   ///
   public var fileIDMap: FileIDMap { FileIDMap(id: id, children: [:]) }
+
+
+  // MARK: Deserialisation
+  
+  /// Update a files `contents` from its file wrapper if the latter is newer.
+  ///
+  /// This can happen if `FileWrapper.read(from:options:)` is used to refresh a file wrapper tree from disk.
+  ///
+  public mutating func refreshContentsIfStale() {
+    if let fileWrapperModificationDate,
+       fileWrapperModificationDate > contentsModificationDate,
+       let cleanFileWrapper,
+       cleanFileWrapper.isRegularFile,
+       let data = cleanFileWrapper.regularFileContents
+    {
+      let filename = cleanFileWrapper.filename ?? cleanFileWrapper.preferredFilename ?? "unknown"
+      if let newContents = try? Contents(name: filename, data: data) {
+
+        contents                 = newContents
+        self.cleanFileWrapper    = cleanFileWrapper   // NB: The above assignment sets `self.cleanFileWrapper` to `nil`.
+        contentsModificationDate = fileWrapperModificationDate
+
+      }
+    }
+  }
 }
 
 // NB: The only bit that is not sendable, from the compilers point of view, is `cleanFileWrapper`. However, we do know
