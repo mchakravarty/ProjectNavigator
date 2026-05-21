@@ -36,7 +36,7 @@ public final class FileTree<Contents: FileContents> {
   /// Cache of the id of the root to enable access without accessing the `root` variable. That helps to avoid
   /// simultaneous access to the folder struct of the root in some operations.
   ///
-  private var rootID: UUID?
+  private var rootID: UUID
 
   /// All files contained in the file tree.
   ///
@@ -52,14 +52,16 @@ public final class FileTree<Contents: FileContents> {
   /// Produce a file tree from a folder structure with full files.
   ///
   public init(files: FullFileOrFolder<Contents>) {
-    self.root = nil   // Need to init all properties before being able to use `self`.
-    self.root = files.proxy(within: self)
+    self.root   = nil   // Need to init all properties before being able to use `self`.
+    self.rootID = files.id
+    self.root   = files.proxy(within: self)
   }
 
   /// Clone a file tree.
   ///
   public init(fileTree: FileTree<Contents>) {
     self.root      = fileTree.root
+    self.rootID    = fileTree.rootID
     self.files     = fileTree.files
     self.filePaths = fileTree.filePaths
   }
@@ -67,7 +69,9 @@ public final class FileTree<Contents: FileContents> {
   /// File tree consisting of an empty folder.
   ///
   public init() {
-    self.root = .folder(ProxyFolder(children: [:]))
+    let emptyFolder: ProxyFileOrFolder<Contents> = .folder(ProxyFolder(children: [:]))
+    self.root   = emptyFolder
+    self.rootID = emptyFolder.id
   }
 
   
